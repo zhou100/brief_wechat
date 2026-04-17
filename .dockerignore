@@ -1,0 +1,8 @@
+.git
+node_modules
+time_logger_game
+miniprogram
+docs
+deployment
+project.private.config.json
+npm-debug.log
