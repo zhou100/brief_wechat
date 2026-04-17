@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from openai import AsyncOpenAI
 from pydantic import BaseModel, field_validator
-from sqlalchemy import select, func, or_, and_, case, cast, Date
+from sqlalchemy import select, func, or_, and_, case
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -1262,37 +1262,35 @@ async def get_available_weeks(
     """Return calendar weeks with 3+ entries for the current user, newest first."""
     today_utc = datetime.now(timezone.utc).date()
 
-    # Group entries by ISO week (Monday-based) using date_trunc, cast to date
-    week_col = cast(
-        func.date_trunc(
-            "week",
-            func.coalesce(Entry.local_date, func.date(Entry.created_at)),
-        ),
-        Date,
-    ).label("week_monday")
-
     result = await db.execute(
         select(
-            week_col,
-            func.count(Entry.id).label("cnt"),
+            Entry.local_date,
+            Entry.created_at,
         )
         .join(Job, Job.entry_id == Entry.id)
         .where(
             Entry.user_id == current_user.id,
             Job.status == JobStatus.DONE,
         )
-        .group_by(week_col)
-        .having(func.count(Entry.id) >= 3)
-        .order_by(week_col.desc())
-        .limit(limit)
+        .order_by(Entry.local_date.desc(), Entry.created_at.desc())
     )
-    week_rows = result.all()
+    week_counts = {}
+    for local_date, created_at in result.all():
+        effective_date = local_date or created_at.date()
+        week_start = _current_week_start(effective_date)
+        week_counts[week_start] = week_counts.get(week_start, 0) + 1
 
-    if not week_rows:
+    qualified_weeks = [
+        (week_start, count)
+        for week_start, count in sorted(week_counts.items(), reverse=True)
+        if count >= 3
+    ][:limit]
+
+    if not qualified_weeks:
         return []
 
     # Batch-check which weeks have a non-stale report
-    monday_dates = [row.week_monday.date() if hasattr(row.week_monday, 'date') else row.week_monday for row in week_rows]
+    monday_dates = [week_start for week_start, _ in qualified_weeks]
     report_result = await db.execute(
         select(AuditResult.audit_date).where(
             AuditResult.user_id == current_user.id,
@@ -1305,13 +1303,12 @@ async def get_available_weeks(
     has_report_dates = {row[0] for row in report_result.all()}
 
     weeks = []
-    for row in week_rows:
-        monday = row.week_monday.date() if hasattr(row.week_monday, 'date') else row.week_monday
+    for monday, entry_count in qualified_weeks:
         week_end = min(monday + timedelta(days=6), today_utc)
         weeks.append(AvailableWeek(
             week_start=monday.isoformat(),
             week_end=week_end.isoformat(),
-            entry_count=row.cnt,
+            entry_count=entry_count,
             has_report=monday in has_report_dates,
         ))
     return weeks

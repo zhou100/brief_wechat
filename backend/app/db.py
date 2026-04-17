@@ -6,7 +6,7 @@ import ssl as _ssl
 import logging
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import sessionmaker
 
 logger = logging.getLogger(__name__)
 
@@ -52,9 +52,6 @@ async_session = sessionmaker(
     autocommit=False,
     autoflush=False,
 )
-
-Base = declarative_base()
-
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with async_session() as session:
