@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -56,6 +56,13 @@ class EntryCreateRequest(BaseModel):
     duration_ms: int
     local_date: Optional[str] = None
     client_meta: Dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("duration_ms", mode="before")
+    @classmethod
+    def coerce_duration_ms(cls, value):
+        if isinstance(value, float):
+            return max(1, round(value))
+        return value
 
 
 class EntryCreateResponse(BaseModel):

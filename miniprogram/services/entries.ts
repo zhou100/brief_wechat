@@ -53,7 +53,7 @@ export async function submitRecordedEntry(params: {
       data: {
         cloud_file_id: upload.cloud_file_id,
         cloud_temp_url: upload.cloud_temp_url,
-        duration_ms: params.durationMs,
+        duration_ms: Math.max(1, Math.round(params.durationMs)),
         local_date: params.localDate,
         client_meta: {
           source: "wechat-miniapp",
@@ -85,7 +85,7 @@ export async function submitRecordedEntry(params: {
       token: params.token,
       data: {
         object_key: upload.object_key,
-        duration_ms: params.durationMs,
+        duration_ms: Math.max(1, Math.round(params.durationMs)),
         local_date: params.localDate,
         client_meta: {
           source: "wechat-miniapp",

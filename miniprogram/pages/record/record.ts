@@ -49,7 +49,7 @@ Page({
       this.setData({
         recording: false,
         lastFilePath: result.tempFilePath,
-        lastDurationMs: result.durationMs,
+        lastDurationMs: Math.max(1, Math.round(result.durationMs)),
       });
       await this.upload(result.tempFilePath, result.durationMs);
     } catch (error) {
