@@ -21,6 +21,14 @@ class Settings(BaseSettings):
 
     # ── OpenAI ───────────────────────────────────────────────────────────────
     OPENAI_API_KEY: str = "dummy"
+    MOONSHOT_API_KEY: str = ""
+    MOONSHOT_BASE_URL: str = "https://api.moonshot.cn/v1"
+    MOONSHOT_MODEL: str = "kimi-k2.5"
+
+    XFYUN_APP_ID: str = ""
+    XFYUN_API_KEY: str = ""
+    XFYUN_API_SECRET: str = ""
+    XFYUN_IAT_URL: str = "wss://iat.cn-huabei-1.xf-yun.com/v1"
 
     # ── Object Storage (Cloudflare R2 / S3-compatible) ─────────────────────────
     # R2 endpoint format: https://<ACCOUNT_ID>.r2.cloudflarestorage.com

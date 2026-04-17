@@ -39,7 +39,13 @@ Set these in CloudBase Run service settings.
 | `WECHAT_SECRET` | Your Mini Program AppSecret |
 | `MINIAPP_PUBLIC_BASE_URL` | Your CloudBase Run HTTPS domain |
 | `USE_CLOUDBASE_STORAGE` | `true` |
-| `OPENAI_API_KEY` | Your OpenAI API key |
+| `MOONSHOT_API_KEY` | Your Moonshot/Kimi API key |
+| `MOONSHOT_BASE_URL` | `https://api.moonshot.cn/v1` |
+| `MOONSHOT_MODEL` | `kimi-k2.5` |
+| `XFYUN_APP_ID` | Your iFlytek app id |
+| `XFYUN_API_KEY` | Your iFlytek API key |
+| `XFYUN_API_SECRET` | Your iFlytek API secret |
+| `XFYUN_IAT_URL` | `wss://iat.cn-huabei-1.xf-yun.com/v1` |
 | `ALLOWED_ORIGINS_STR` | `*` |
 
 Example:

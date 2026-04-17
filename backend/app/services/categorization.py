@@ -6,20 +6,9 @@ from a single transcript (multi-entry extraction).
 import json
 import logging
 from typing import Any, Dict, List
-from openai import AsyncOpenAI
-from ..settings import settings
+from .llm_client import chat_model, get_chat_client
 
 logger = logging.getLogger(__name__)
-
-_client: AsyncOpenAI | None = None
-
-
-def _get_client() -> AsyncOpenAI:
-    global _client
-    if _client is None:
-        _client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-    return _client
-
 
 SYSTEM_PROMPT = """You are a time-logging assistant. Extract ALL distinct activities, \
 tasks, ideas, and notes from the transcript and return them as a JSON array.
@@ -115,8 +104,8 @@ async def categorize_text(text: str) -> List[Dict[str, Any]]:
         raise ValueError("No speech detected")
 
     try:
-        response = await _get_client().chat.completions.create(
-            model="gpt-5.4-nano",
+        response = await get_chat_client().chat.completions.create(
+            model=chat_model(),
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": stripped},
@@ -124,7 +113,7 @@ async def categorize_text(text: str) -> List[Dict[str, Any]]:
             temperature=0.3,
         )
         raw = response.choices[0].message.content or ""
-        results = json.loads(raw)
+        results = json.loads(_extract_json_array(raw))
 
         # Validate: must be a non-empty list of dicts with text + category
         if not isinstance(results, list) or not results:
@@ -156,3 +145,16 @@ async def categorize_text(text: str) -> List[Dict[str, Any]]:
     except Exception as exc:
         logger.error(f"Categorization API call failed: {exc}")
         return [{"text": stripped, "category": "REFLECTION"}]
+
+
+def _extract_json_array(text: str) -> str:
+    stripped = (text or "").strip()
+    if stripped.startswith("```"):
+        stripped = stripped.strip("`")
+        if stripped.lower().startswith("json"):
+            stripped = stripped[4:].strip()
+    start = stripped.find("[")
+    end = stripped.rfind("]")
+    if start >= 0 and end > start:
+        return stripped[start:end + 1]
+    return stripped

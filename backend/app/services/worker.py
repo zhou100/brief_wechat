@@ -14,7 +14,6 @@ import asyncio
 import json
 import logging
 import os
-import tempfile
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,12 +27,10 @@ from ..services import queue as queue_svc
 from ..services import storage as storage_svc
 from ..services.categorization import categorize_text
 from ..services.transcript_refiner import refine_transcript
-from openai import AsyncOpenAI
+from ..services.xfyun_transcription import transcribe_audio
 from ..settings import settings
 
 logger = logging.getLogger(__name__)
-
-_openai: AsyncOpenAI | None = None
 
 # Jobs stuck in PROCESSING longer than this are considered dead and will be failed.
 _STALE_JOB_THRESHOLD = timedelta(minutes=5)
@@ -43,13 +40,6 @@ _STALE_JOB_THRESHOLD = timedelta(minutes=5)
 # delete anything older than this to keep the table bounded.
 _NOTIFICATION_TTL = timedelta(hours=24)
 _NOTIFICATION_CLEANUP_INTERVAL = timedelta(hours=1)
-
-
-def _get_openai() -> AsyncOpenAI:
-    global _openai
-    if _openai is None:
-        _openai = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-    return _openai
 
 
 async def _recover_stale_jobs(db: AsyncSession) -> None:
@@ -95,25 +85,12 @@ async def _process_job(db: AsyncSession, job: Job) -> None:
         except Exception as exc:
             raise RuntimeError(f"audio_download_failed: {exc}") from exc
 
-        suffix = os.path.splitext(entry.raw_audio_key)[1] or ".webm"
-
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-            tmp.write(audio_bytes)
-            tmp_path = tmp.name
-
+        suffix = os.path.splitext(entry.raw_audio_key)[1] or ".mp3"
         try:
-            try:
-                with open(tmp_path, "rb") as f:
-                    transcript_response = await _get_openai().audio.transcriptions.create(
-                        file=f,
-                        model="gpt-4o-mini-transcribe",
-                    )
-            except Exception as exc:
-                raise RuntimeError(f"transcription_failed: {exc}") from exc
-            raw_transcript = transcript_response.text
+            raw_transcript = await transcribe_audio(audio_bytes, suffix)
             logger.info(f"Raw transcript ({len(raw_transcript)} chars): {raw_transcript[:120]}...")
-        finally:
-            os.unlink(tmp_path)
+        except Exception as exc:
+            raise RuntimeError(f"xfyun_transcription_failed: {exc}") from exc
 
         # ── Handle empty/silent audio ────────────────────────────────────────
         if not raw_transcript or not raw_transcript.strip():
@@ -164,7 +141,7 @@ async def _process_job(db: AsyncSession, job: Job) -> None:
                 extracted_text=item.get("text"),
                 estimated_minutes=est_min_val,
                 display_order=i,
-                model_version="gpt-5.4-nano",
+                model_version=settings.MOONSHOT_MODEL,
             )
             db.add(classification)
 

@@ -47,15 +47,8 @@ def _standard_patches(cat_results):
         ),
         "app.services.worker.categorize_text": AsyncMock(return_value=cat_results),
         "app.services.worker.refine_transcript": AsyncMock(return_value="refined transcript"),
+        "app.services.worker.transcribe_audio": AsyncMock(return_value="some transcript"),
     }
-
-
-def _mock_openai():
-    transcript_mock = MagicMock()
-    transcript_mock.text = "some transcript"
-    openai_mock = MagicMock()
-    openai_mock.return_value.audio.transcriptions.create = AsyncMock(return_value=transcript_mock)
-    return openai_mock
 
 
 def _mock_db(entry):
@@ -75,12 +68,7 @@ async def _run_process_job(db, job, cat_results):
          patch("app.services.worker.storage_svc", patches["app.services.worker.storage_svc"]), \
          patch("app.services.worker.categorize_text", patches["app.services.worker.categorize_text"]), \
          patch("app.services.worker.refine_transcript", patches["app.services.worker.refine_transcript"]), \
-         patch("app.services.worker._get_openai", _mock_openai()), \
-         patch("app.services.worker.tempfile.NamedTemporaryFile") as mock_tmp, \
-         patch("app.services.worker.os.unlink"), \
-         patch("builtins.open", MagicMock()):
-        mock_tmp.return_value.__enter__ = MagicMock(return_value=MagicMock(name="test.webm"))
-        mock_tmp.return_value.__exit__ = MagicMock(return_value=False)
+         patch("app.services.worker.transcribe_audio", patches["app.services.worker.transcribe_audio"]):
         from app.services.worker import _process_job
         await _process_job(db, job)
 

@@ -8,7 +8,7 @@ WeChat Mini Program
   -> CloudBase Run / CloudBase Hosting domain
   -> FastAPI Docker backend
   -> CloudBase built-in MySQL
-  -> OpenAI-compatible AI pipeline from existing worker
+  -> iFlytek speech-to-text + Moonshot/Kimi summarization pipeline
 ```
 
 ## Why CloudBase Run
@@ -49,7 +49,14 @@ WECHAT_SECRET=<mini program appsecret>
 MINIAPP_PUBLIC_BASE_URL=https://<cloudbase-run-domain>
 USE_CLOUDBASE_STORAGE=true
 
-OPENAI_API_KEY=<openai key>
+MOONSHOT_API_KEY=<moonshot key>
+MOONSHOT_BASE_URL=https://api.moonshot.cn/v1
+MOONSHOT_MODEL=kimi-k2.5
+
+XFYUN_APP_ID=<xfyun app id>
+XFYUN_API_KEY=<xfyun api key>
+XFYUN_API_SECRET=<xfyun api secret>
+XFYUN_IAT_URL=wss://iat.cn-huabei-1.xf-yun.com/v1
 
 ALLOWED_ORIGINS_STR=*
 ```

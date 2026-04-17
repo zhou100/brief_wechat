@@ -12,6 +12,13 @@ WECHAT_SECRET=replace-with-mini-program-appsecret
 MINIAPP_PUBLIC_BASE_URL=https://replace-with-cloudbase-run-domain
 USE_CLOUDBASE_STORAGE=true
 
-OPENAI_API_KEY=replace-with-openai-key
+MOONSHOT_API_KEY=replace-with-moonshot-key
+MOONSHOT_BASE_URL=https://api.moonshot.cn/v1
+MOONSHOT_MODEL=kimi-k2.5
+
+XFYUN_APP_ID=replace-with-xfyun-app-id
+XFYUN_API_KEY=replace-with-xfyun-api-key
+XFYUN_API_SECRET=replace-with-xfyun-api-secret
+XFYUN_IAT_URL=wss://iat.cn-huabei-1.xf-yun.com/v1
 
 ALLOWED_ORIGINS_STR=*

@@ -5,20 +5,9 @@ Fixes common speech-to-text errors: homophones, mis-segmented words,
 garbled Chinese/English code-switching, and punctuation.
 """
 import logging
-from openai import AsyncOpenAI
-from ..settings import settings
+from .llm_client import chat_model, get_chat_client
 
 logger = logging.getLogger(__name__)
-
-_client: AsyncOpenAI | None = None
-
-
-def _get_client() -> AsyncOpenAI:
-    global _client
-    if _client is None:
-        _client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-    return _client
-
 
 REFINE_PROMPT = """\
 You are a transcript editor. The user will give you a raw speech-to-text transcript \
@@ -45,8 +34,8 @@ async def refine_transcript(raw_text: str) -> str:
         return stripped
 
     try:
-        response = await _get_client().chat.completions.create(
-            model="gpt-4o-mini",
+        response = await get_chat_client().chat.completions.create(
+            model=chat_model(),
             messages=[
                 {"role": "system", "content": REFINE_PROMPT},
                 {"role": "user", "content": stripped},

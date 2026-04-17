@@ -85,7 +85,8 @@ function statusText(status: string): string {
 
 function errorCodeText(code?: string): string {
   if (code === "audio_download_failed") return "音频下载失败，请重新录音再试。";
-  if (code === "transcription_failed") return "语音转写失败，请用真机录音再试，或检查后端 OpenAI 配置。";
+  if (code === "transcription_failed") return "语音转写失败，请用真机录音再试，或检查后端语音服务配置。";
+  if (code === "xfyun_transcription_failed") return "讯飞语音转写失败，请检查讯飞 API 配置或音频格式。";
   if (code === "stale_job_recovered") return "处理任务中断了，请重新录音再试。";
   if (code === "entry_not_found") return "没有找到这条录音记录，请重新录音。";
   if (code === "job_failed") return "处理失败，请查看 CloudBase 服务日志。";
