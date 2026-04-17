@@ -88,14 +88,22 @@ export function uploadAudioFileToCloudBase(params: {
   const cloudPath = `raw_audio/${params.localDate}/${Date.now()}-${randomString()}${suffix}`;
 
   return new Promise((resolve, reject) => {
+    if (!wx.cloud) {
+      reject(new Error("CloudBase SDK is unavailable. Check project AppID and base library."));
+      return;
+    }
+
+    console.info("[brief-cloud] upload", { cloudPath, filePath: params.filePath });
     wx.cloud.uploadFile({
       cloudPath,
       filePath: params.filePath,
       success: async (uploadRes) => {
         try {
+          console.info("[brief-cloud] uploaded", { fileID: uploadRes.fileID });
           const tempUrlRes = await wx.cloud.getTempFileURL({
             fileList: [uploadRes.fileID],
           });
+          console.info("[brief-cloud] temp url result", tempUrlRes.fileList);
           const item = tempUrlRes.fileList[0];
           if (!item || item.status !== 0 || !item.tempFileURL) {
             reject(new Error(item?.errMsg || "CloudBase temp file URL failed"));
@@ -107,10 +115,14 @@ export function uploadAudioFileToCloudBase(params: {
             cloud_path: cloudPath,
           });
         } catch (error) {
+          console.error("[brief-cloud] temp url failed", error);
           reject(error);
         }
       },
-      fail: reject,
+      fail: (error) => {
+        console.error("[brief-cloud] upload failed", error);
+        reject(error);
+      },
     });
   });
 }

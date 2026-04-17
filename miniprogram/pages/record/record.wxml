@@ -10,6 +10,11 @@
 
   <button wx:if="{{lastFilePath && !uploading}}" class="button secondary" bindtap="retryUpload">重试上传</button>
 
+  <view wx:if="{{errorText}}" class="panel stack">
+    <text class="section-title">上传失败原因</text>
+    <text>{{errorText}}</text>
+  </view>
+
   <view class="panel">
     <text class="muted">说清楚你刚完成了什么、有什么结论、还有哪些没闭环。录完后会自动整理。</text>
   </view>

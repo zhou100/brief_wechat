@@ -14,6 +14,7 @@ Page({
     statusText: "准备开始",
     lastFilePath: "",
     lastDurationMs: 0,
+    errorText: "",
   },
 
   timer: 0 as number,
@@ -29,6 +30,7 @@ Page({
         elapsedLabel: "0:00",
         statusText: "正在录音",
         lastFilePath: "",
+        errorText: "",
       });
       this.timer = Number(setInterval(() => {
         const elapsedMs = this.data.elapsedMs + 1000;
@@ -78,7 +80,13 @@ Page({
       wx.redirectTo({ url: `/pages/job/job?job_id=${entry.job_id}` });
     } catch (error) {
       wx.hideLoading();
-      this.setData({ uploading: false, statusText: "上传失败，可重试" });
+      const message = readableError(error);
+      console.error("[brief-record] upload failed", error);
+      this.setData({
+        uploading: false,
+        statusText: "上传失败，可重试",
+        errorText: message,
+      });
       wx.showToast({ title: "上传失败", icon: "none" });
     }
   },
@@ -87,3 +95,17 @@ Page({
     clearInterval(this.timer);
   },
 });
+
+function readableError(error: unknown): string {
+  if (!error) return "未知错误，请查看真机调试 Console。";
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === "string") return error;
+  const maybe = error as { errMsg?: string; message?: string };
+  if (maybe.errMsg) return maybe.errMsg;
+  if (maybe.message) return maybe.message;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return "未知错误，请查看真机调试 Console。";
+  }
+}
