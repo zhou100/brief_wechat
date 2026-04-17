@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+export PYTHONPATH="/app:${PYTHONPATH}"
+
 # ── Validate required env vars ──────────────────────────────────────────────
 if [ -z "$DATABASE_URL" ]; then
   echo "ERROR: DATABASE_URL is not set."
