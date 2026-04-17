@@ -5,14 +5,14 @@ Brief WeChat is a lightweight Mini Program client for voice capture, AI summary,
 This repo does not copy the existing React web app. It keeps `time_logger_game/` as a local ignored reference and builds a new WeChat-runtime client around the smallest useful loop:
 
 ```text
-open -> start -> record -> upload -> backend job -> structured result -> share summary card
+open -> start -> record -> CloudBase upload -> backend job -> structured result -> share summary card
 ```
 
 ## Product Scope
 
 First version:
 
-- record and upload audio
+- record and upload audio with CloudBase native storage
 - poll backend job status
 - show structured result:
   - one-sentence summary
@@ -68,7 +68,6 @@ Open this repo root in WeChat DevTools with `project.config.json`.
 The Mini Program expects a first-party BFF layer:
 
 - `POST /miniapp/auth/login`
-- `POST /miniapp/uploads/create`
 - `POST /miniapp/entries`
 - `GET /miniapp/jobs/{job_id}`
 - `GET /miniapp/entries/{entry_id}/result`
@@ -81,7 +80,7 @@ The BFF lives in `backend/` and exposes the Mini Program API without making the 
 
 ## Tencent Cloud Deployment
 
-The full Tencent Cloud target uses CloudBase Run, CloudBase MySQL, and Tencent COS. It is documented in:
+The full Tencent Cloud target uses CloudBase Run, CloudBase MySQL, and CloudBase native storage. It is documented in:
 
 - `docs/tencent-cloudbase.md`
 - `docs/cloudbase-checklist.md`

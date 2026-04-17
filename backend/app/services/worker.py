@@ -87,7 +87,10 @@ async def _process_job(db: AsyncSession, job: Job) -> None:
         await queue_svc.mark_step(db, job, "transcribing")
         await db.commit()
 
-        audio_bytes = await storage_svc.download_bytes(entry.raw_audio_key)
+        audio_bytes = await storage_svc.download_bytes(
+            entry.raw_audio_key,
+            entry.raw_audio_download_url,
+        )
         suffix = os.path.splitext(entry.raw_audio_key)[1] or ".webm"
 
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:

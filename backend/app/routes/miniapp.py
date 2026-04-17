@@ -4,8 +4,8 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
+from pydantic import BaseModel, HttpUrl
 from jose import JWTError, jwt
-from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -50,7 +50,9 @@ class UploadCreateResponse(BaseModel):
 
 
 class EntryCreateRequest(BaseModel):
-    object_key: str
+    object_key: Optional[str] = None
+    cloud_file_id: Optional[str] = None
+    cloud_temp_url: Optional[HttpUrl] = None
     duration_ms: int
     local_date: Optional[str] = None
     client_meta: Dict[str, Any] = {}
@@ -78,6 +80,7 @@ class JobResponse(BaseModel):
 class EntryResultResponse(BaseModel):
     entry_id: str
     result_id: Optional[str] = None
+    cloud_file_id: Optional[str] = None
     created_at: str
     summary: str
     key_points: List[str]
@@ -185,11 +188,25 @@ async def create_entry(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    expected_prefix = f"audio/{current_user.id}/"
-    if not body.object_key.startswith(expected_prefix):
-        raise HTTPException(status_code=400, detail="object_key does not match user")
+    if body.duration_ms <= 0:
+        raise HTTPException(status_code=400, detail="duration_ms must be positive")
 
-    entry_id = _entry_id_from_object_key(body.object_key) or uuid.uuid4()
+    raw_audio_key = body.cloud_file_id or body.object_key
+    if not raw_audio_key:
+        raise HTTPException(status_code=400, detail="audio file reference is required")
+
+    if body.cloud_file_id:
+        if not body.cloud_file_id.startswith("cloud://"):
+            raise HTTPException(status_code=400, detail="cloud_file_id must be a CloudBase fileID")
+        if not body.cloud_temp_url:
+            raise HTTPException(status_code=400, detail="cloud_temp_url is required for CloudBase uploads")
+        entry_id = uuid.uuid4()
+    else:
+        expected_prefix = f"audio/{current_user.id}/"
+        if not body.object_key or not body.object_key.startswith(expected_prefix):
+            raise HTTPException(status_code=400, detail="object_key does not match user")
+        entry_id = _entry_id_from_object_key(body.object_key) or uuid.uuid4()
+
     local_date = None
     if body.local_date:
         try:
@@ -200,7 +217,8 @@ async def create_entry(
     entry = Entry(
         id=entry_id,
         user_id=current_user.id,
-        raw_audio_key=body.object_key,
+        raw_audio_key=raw_audio_key,
+        raw_audio_download_url=str(body.cloud_temp_url) if body.cloud_temp_url else None,
         duration_seconds=max(1, round(body.duration_ms / 1000)),
         recorded_at=datetime.now(timezone.utc),
         local_date=local_date,
@@ -261,7 +279,7 @@ async def delete_entry(
     current_user: User = Depends(get_current_user),
 ):
     entry = await _get_owned_entry(db, entry_id, current_user.id)
-    if entry.raw_audio_key:
+    if entry.raw_audio_key and not entry.raw_audio_key.startswith("cloud://"):
         await storage_svc.delete_object(entry.raw_audio_key)
     await db.delete(entry)
     await db.commit()
@@ -374,6 +392,7 @@ def _entry_result(entry: Entry) -> EntryResultResponse:
     return EntryResultResponse(
         entry_id=str(entry.id),
         result_id=str(entry.id),
+        cloud_file_id=entry.raw_audio_key if entry.raw_audio_key and entry.raw_audio_key.startswith("cloud://") else None,
         created_at=entry.created_at.isoformat(),
         summary=_one_sentence(summary_source),
         key_points=key_points[:5],

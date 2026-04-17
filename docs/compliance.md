@@ -28,7 +28,7 @@ The Mini Program must provide deletion for each entry. Deletion should remove or
 Configure these separately in the WeChat Mini Program admin console:
 
 - `request` domain for `/miniapp/*` JSON APIs.
-- `uploadFile` domain for audio uploads.
+- `uploadFile` domain only if using a custom backend upload path. The CloudBase-native path uses `wx.cloud.uploadFile`.
 - `downloadFile` domain for generated share-card images if used.
 - `socket` domain only if realtime status is added later.
 

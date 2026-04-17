@@ -7,8 +7,8 @@ The Mini Program is a lightweight input and sharing client. It only talks to fir
 ```text
 wx.login -> /miniapp/auth/login
 record audio
-POST /miniapp/uploads/create
-wx.uploadFile
+wx.cloud.uploadFile
+wx.cloud.getTempFileURL
 POST /miniapp/entries
 GET /miniapp/jobs/{job_id}
 GET /miniapp/entries/{entry_id}/result
@@ -46,33 +46,14 @@ Server behavior:
 
 ## Upload
 
-### `POST /miniapp/uploads/create`
+The first CloudBase-native version uploads audio directly from the Mini Program:
 
-Request:
-
-```json
-{
-  "fileName": "recording-1770000000000.mp3",
-  "mimeType": "audio/mpeg",
-  "durationMs": 53000,
-  "fileSize": 123456
-}
+```ts
+wx.cloud.uploadFile({ cloudPath, filePath })
+wx.cloud.getTempFileURL({ fileList: [fileID] })
 ```
 
-Response:
-
-```json
-{
-  "upload_api_url": "https://api.example.com/miniapp/uploads/audio",
-  "object_key": "raw_audio/{user_id}/{date}/{uuid}.mp3"
-}
-```
-
-Notes:
-
-- `upload_api_url` must be configured as a WeChat `uploadFile` legal domain.
-- Validate type, duration, and size server-side.
-- Bind uploaded objects to the authenticated user.
+The backend receives the CloudBase `fileID` and a short-lived temp URL, then owns transcription, summarization, and database state. The older `/miniapp/uploads/create` and `/miniapp/uploads/audio` backend upload path remains as a fallback for non-CloudBase clients.
 
 ## Entries
 
@@ -82,7 +63,8 @@ Request:
 
 ```json
 {
-  "object_key": "raw_audio/{user_id}/{date}/{uuid}.mp3",
+  "cloud_file_id": "cloud://env.bucket/raw_audio/2026-04-16/recording.mp3",
+  "cloud_temp_url": "https://example.tcb.qcloud.la/temp-signed-audio-url",
   "duration_ms": 53000,
   "local_date": "2026-04-16",
   "client_meta": {

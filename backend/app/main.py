@@ -25,12 +25,13 @@ async def lifespan(app: FastAPI):
     if settings.ENVIRONMENT != "test":
         await init_db()
 
-    # Ensure the storage bucket exists (no-op if already present)
-    try:
-        from .services.storage import ensure_bucket
-        await ensure_bucket()
-    except Exception as exc:
-        logger.warning(f"Storage bucket init skipped: {exc}")
+    if not settings.USE_CLOUDBASE_STORAGE:
+        # Ensure the S3-compatible storage bucket exists (no-op if already present).
+        try:
+            from .services.storage import ensure_bucket
+            await ensure_bucket()
+        except Exception as exc:
+            logger.warning(f"Storage bucket init skipped: {exc}")
 
     # Start embedded worker loop as a background task
     from .services.worker import run_worker

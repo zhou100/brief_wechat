@@ -1,5 +1,6 @@
 import { loginWithWechatCode } from "./services/auth";
 import type { MiniappUser } from "./types/api";
+import { CLOUDBASE_ENV_ID, USE_CLOUDBASE_UPLOAD, USE_MOCK_API } from "./env";
 
 type GlobalData = {
   token: string | null;
@@ -13,6 +14,13 @@ App({
   } as GlobalData,
 
   onLaunch() {
+    if (!USE_MOCK_API && USE_CLOUDBASE_UPLOAD && wx.cloud) {
+      wx.cloud.init({
+        env: CLOUDBASE_ENV_ID || undefined,
+        traceUser: true,
+      });
+    }
+
     const token = wx.getStorageSync("brief_token") as string | undefined;
     const user = wx.getStorageSync("brief_user") as MiniappUser | undefined;
     this.globalData.token = token || null;

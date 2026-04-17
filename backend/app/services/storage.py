@@ -10,6 +10,7 @@ Local dev:  MinIO via docker-compose (S3-compatible)
 import logging
 from typing import Optional
 import aioboto3
+import httpx
 from botocore.exceptions import ClientError
 from ..settings import settings
 
@@ -109,8 +110,23 @@ async def generate_presigned_get(key: str, expires_in: int = 3600) -> str:
     return url
 
 
-async def download_bytes(key: str) -> bytes:
+async def download_bytes(key: str, download_url: Optional[str] = None) -> bytes:
     """Download a file from object storage as raw bytes."""
+    if download_url:
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.get(download_url)
+            response.raise_for_status()
+            return response.content
+
+    if key.startswith("http://") or key.startswith("https://"):
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.get(key)
+            response.raise_for_status()
+            return response.content
+
+    if key.startswith("cloud://"):
+        raise RuntimeError("CloudBase fileID requires a temporary download URL")
+
     async with _client() as s3:
         response = await s3.get_object(Bucket=settings.S3_BUCKET, Key=key)
         async with response["Body"] as stream:

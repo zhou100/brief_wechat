@@ -7,6 +7,7 @@ import type {
   ShareCardResponse,
   SharedBrief,
   UploadCreateResponse,
+  CloudUploadResponse,
 } from "../types/api";
 
 let pollCount = 0;
@@ -23,6 +24,16 @@ export function mockRequest<TResponse, TBody = unknown>(
 
 export function mockUploadAudioFile(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 500));
+}
+
+export function mockCloudUploadAudioFile(): Promise<CloudUploadResponse> {
+  return new Promise((resolve) => {
+    setTimeout(() => resolve({
+      cloud_file_id: `cloud://mock-env/mock-bucket/raw_audio/mock/${Date.now()}.mp3`,
+      cloud_temp_url: "https://example.com/mock-audio.mp3",
+      cloud_path: `raw_audio/mock/${Date.now()}.mp3`,
+    }), 500);
+  });
 }
 
 function route<TResponse, TBody>(
@@ -114,6 +125,7 @@ function mockBrief(): DailyBrief {
   return {
     entry_id: lastEntryId,
     result_id: "mock-result-1",
+    cloud_file_id: "cloud://mock-env/mock-bucket/raw_audio/mock/latest.mp3",
     created_at: new Date().toISOString(),
     summary: "今天的重点是把微信小程序的最小录音闭环跑起来。",
     key_points: [

@@ -1,6 +1,7 @@
 import type { BriefApp } from "../../app";
 import {
   createShareCard,
+  deleteCloudFile,
   deleteEntry,
   getDailyBrief,
   getEntryResult,
@@ -19,6 +20,7 @@ Page({
     summary: "",
     keyPoints: [] as string[],
     openLoops: [] as string[],
+    cloudFileId: "",
     shareCard: null as ShareCard | null,
   },
 
@@ -39,6 +41,7 @@ Page({
         summary: result.summary,
         keyPoints: result.key_points || [],
         openLoops: result.open_loops || [],
+        cloudFileId: result.cloud_file_id || "",
         shareCard: result.share_card || null,
       });
       if (!result.share_card) {
@@ -88,6 +91,11 @@ Page({
         try {
           const token = await app.ensureLogin();
           await deleteEntry(token, this.data.entryId);
+          if (this.data.cloudFileId) {
+            deleteCloudFile(this.data.cloudFileId).catch((error) => {
+              console.warn("[brief-cloud] delete file failed", error);
+            });
+          }
           wx.showToast({ title: "已删除", icon: "success" });
           wx.reLaunch({ url: "/pages/index/index" });
         } catch (error) {

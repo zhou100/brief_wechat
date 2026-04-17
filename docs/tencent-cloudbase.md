@@ -4,10 +4,10 @@ Target stack:
 
 ```text
 WeChat Mini Program
+  -> CloudBase native storage for audio
   -> CloudBase Run / CloudBase Hosting domain
   -> FastAPI Docker backend
   -> CloudBase built-in MySQL
-  -> Tencent COS for audio
   -> OpenAI-compatible AI pipeline from existing worker
 ```
 
@@ -15,18 +15,20 @@ WeChat Mini Program
 
 The backend is a Dockerized FastAPI app with an embedded worker. CloudBase Run supports containerized services, so we can deploy it without rewriting the backend into cloud functions.
 
-Use the CloudBase built-in MySQL database for the first production deployment. The backend models use SQLAlchemy portable UUID/JSON types so the same app can run on MySQL.
+Use CloudBase built-in MySQL for the first production deployment. The backend models use SQLAlchemy portable UUID/JSON types so the same app can run on MySQL.
+
+Audio upload should use CloudBase native storage from the Mini Program. The client sends the CloudBase `fileID` and a short-lived temp URL to `/miniapp/entries`; the backend downloads the audio for transcription and stores the `fileID` on the entry.
 
 ## Tencent Resources To Create
 
 1. CloudBase environment.
-2. CloudBase Run service for `time_logger_game/backend`.
-3. Tencent COS bucket for audio.
+2. CloudBase Run service for `backend/`.
+3. CloudBase native storage.
 4. CloudBase built-in MySQL database.
 5. Mini Program legal domains:
    - request domain: CloudBase Run HTTPS domain
-   - uploadFile domain: same CloudBase Run HTTPS domain
-   - downloadFile domain: same domain or COS CDN domain if share images are added
+   - uploadFile domain: not needed for `wx.cloud.uploadFile`
+   - downloadFile domain: CloudBase/COS temp download domain if requested by DevTools or real-device testing
 
 ## Backend Environment Variables
 
@@ -45,30 +47,22 @@ ACCESS_TOKEN_EXPIRE_MINUTES=240
 WECHAT_APPID=<mini program appid>
 WECHAT_SECRET=<mini program appsecret>
 MINIAPP_PUBLIC_BASE_URL=https://<cloudbase-run-domain>
+USE_CLOUDBASE_STORAGE=true
 
 OPENAI_API_KEY=<openai key>
-
-S3_ENDPOINT_URL=https://cos.<region>.myqcloud.com
-S3_PUBLIC_ENDPOINT_URL=https://cos.<region>.myqcloud.com
-S3_ACCESS_KEY=<tencent secret id>
-S3_SECRET_KEY=<tencent secret key>
-S3_BUCKET=<cos bucket name>
-S3_REGION=<region>
 
 ALLOWED_ORIGINS_STR=*
 ```
 
-COS also supports S3-compatible access. If a region-specific endpoint differs in your Tencent console, use the endpoint shown by COS.
-
 ## Deployment Steps
 
-1. Build and push the backend Docker image from:
+1. CloudBase Run deploys from:
 
 ```text
 backend
 ```
 
-2. CloudBase Run deploys the existing Dockerfile:
+2. Use the existing Dockerfile:
 
 ```text
 backend/Dockerfile
@@ -94,7 +88,9 @@ POST /miniapp/auth/login
 
 ```ts
 export const API_BASE_URL = "https://<cloudbase-run-domain>";
+export const CLOUDBASE_ENV_ID = "cloud1-d1gvgrhtq5b993f00";
 export const USE_MOCK_API = false;
+export const USE_CLOUDBASE_UPLOAD = true;
 ```
 
 6. Run:
@@ -106,11 +102,11 @@ npm run build
 7. Test on device:
 
 ```text
-login -> record -> upload -> job -> result -> share
+login -> record -> wx.cloud.uploadFile -> job -> result -> share
 ```
 
 ## Notes
 
 - Keep `WECHAT_SECRET` only in CloudBase Run environment variables. Never put it in Mini Program code.
-- First version uploads audio through the backend via `wx.uploadFile`; this keeps auth, validation, and object ownership centralized.
-- Later, if audio traffic grows, switch `/miniapp/uploads/create` to return a short-lived COS direct-upload credential.
+- The Mini Program uploads audio to CloudBase storage and only sends `fileID` plus a temp URL to the backend.
+- The backend still has the old S3-compatible upload path for non-CloudBase clients, but CloudBase production should use the native path.

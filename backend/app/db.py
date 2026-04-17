@@ -72,4 +72,18 @@ async def init_db() -> None:
     from app.models import Base as ModelBase  # noqa: F401 — ensures all models are registered
     async with engine.begin() as conn:
         await conn.run_sync(lambda c: ModelBase.metadata.create_all(c, checkfirst=True))
+        await conn.run_sync(_ensure_compat_columns)
     logger.info("Database initialized")
+
+
+def _ensure_compat_columns(conn) -> None:
+    """Small idempotent schema fixups for CloudBase MySQL create_all deployments."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(conn)
+    if "entries" not in inspector.get_table_names():
+        return
+
+    entry_columns = {column["name"] for column in inspector.get_columns("entries")}
+    if "raw_audio_download_url" not in entry_columns:
+        conn.execute(text("ALTER TABLE entries ADD COLUMN raw_audio_download_url TEXT NULL"))

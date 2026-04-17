@@ -14,7 +14,8 @@ class Entry(Base):
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    raw_audio_key = Column(String(1024), nullable=True)       # object storage key (MinIO/S3)
+    raw_audio_key = Column(String(1024), nullable=True)       # S3 object key or CloudBase fileID
+    raw_audio_download_url = Column(Text, nullable=True)      # short-lived CloudBase temp URL
     transcript = Column(Text, nullable=True)            # filled by worker after Whisper
     recorded_at = Column(DateTime(timezone=True), nullable=True)   # client-reported time
     duration_seconds = Column(Integer, nullable=True)

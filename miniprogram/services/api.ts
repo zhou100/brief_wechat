@@ -1,5 +1,6 @@
 import { API_BASE_URL, REQUEST_TIMEOUT_MS, USE_MOCK_API } from "../env";
-import { mockRequest, mockUploadAudioFile } from "./mock";
+import { mockCloudUploadAudioFile, mockRequest, mockUploadAudioFile } from "./mock";
+import type { CloudUploadResponse } from "../types/api";
 
 type RequestOptions<TBody> = {
   method?: "GET" | "POST" | "PUT" | "DELETE";
@@ -73,4 +74,61 @@ export function uploadAudioFile(params: {
       fail: reject,
     });
   });
+}
+
+export function uploadAudioFileToCloudBase(params: {
+  filePath: string;
+  localDate: string;
+}): Promise<CloudUploadResponse> {
+  if (USE_MOCK_API) {
+    return mockCloudUploadAudioFile();
+  }
+
+  const suffix = fileSuffix(params.filePath);
+  const cloudPath = `raw_audio/${params.localDate}/${Date.now()}-${randomString()}${suffix}`;
+
+  return new Promise((resolve, reject) => {
+    wx.cloud.uploadFile({
+      cloudPath,
+      filePath: params.filePath,
+      success: async (uploadRes) => {
+        try {
+          const tempUrlRes = await wx.cloud.getTempFileURL({
+            fileList: [uploadRes.fileID],
+          });
+          const item = tempUrlRes.fileList[0];
+          if (!item || item.status !== 0 || !item.tempFileURL) {
+            reject(new Error(item?.errMsg || "CloudBase temp file URL failed"));
+            return;
+          }
+          resolve({
+            cloud_file_id: uploadRes.fileID,
+            cloud_temp_url: item.tempFileURL,
+            cloud_path: cloudPath,
+          });
+        } catch (error) {
+          reject(error);
+        }
+      },
+      fail: reject,
+    });
+  });
+}
+
+export function deleteCloudFile(fileID: string): Promise<void> {
+  if (!fileID || USE_MOCK_API) {
+    return Promise.resolve();
+  }
+
+  return wx.cloud.deleteFile({ fileList: [fileID] }).then(() => undefined);
+}
+
+function fileSuffix(filePath: string): string {
+  const cleanPath = filePath.split("?")[0];
+  const dotIndex = cleanPath.lastIndexOf(".");
+  return dotIndex >= 0 ? cleanPath.slice(dotIndex) : ".mp3";
+}
+
+function randomString(): string {
+  return Math.random().toString(36).slice(2, 10);
 }

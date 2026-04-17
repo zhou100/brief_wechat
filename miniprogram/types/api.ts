@@ -14,6 +14,12 @@ export type UploadCreateResponse = {
   headers?: Record<string, string>;
 };
 
+export type CloudUploadResponse = {
+  cloud_file_id: string;
+  cloud_temp_url: string;
+  cloud_path: string;
+};
+
 export type EntryCreateResponse = {
   entry_id: string;
   job_id: string;
@@ -43,6 +49,7 @@ export type CategoryItem = {
 export type DailyBrief = {
   entry_id: string;
   result_id?: string;
+  cloud_file_id?: string;
   created_at: string;
   summary: string;
   key_points: string[];

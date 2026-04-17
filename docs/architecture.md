@@ -7,7 +7,7 @@ This Mini Program is not the Web product in a new shell. It is a low-friction in
 The first version optimizes one loop:
 
 ```text
-open -> start -> record -> upload -> backend job -> structured result -> share summary card
+open -> start -> record -> CloudBase upload -> backend job -> structured result -> share summary card
 ```
 
 Everything else is secondary. No realtime transcription, no heavy editing, no charts, no complex analytics, and no direct AI calls from the client.
@@ -18,7 +18,7 @@ The Mini Program owns:
 
 1. WeChat login via `wx.login`.
 2. Audio capture via `wx.getRecorderManager`.
-3. Audio upload via `wx.uploadFile`.
+3. Audio upload via `wx.cloud.uploadFile`.
 4. Job polling and resume after leaving the app.
 5. Structured result display:
    - summary

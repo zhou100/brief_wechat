@@ -1,4 +1,5 @@
-import { request, uploadAudioFile } from "./api";
+import { deleteCloudFile, request, uploadAudioFile, uploadAudioFileToCloudBase } from "./api";
+import { USE_CLOUDBASE_UPLOAD } from "../env";
 import type {
   DailyBrief,
   EntryCreateResponse,
@@ -34,6 +35,36 @@ export async function submitRecordedEntry(params: {
   durationMs: number;
   localDate: string;
 }): Promise<EntryCreateResponse> {
+  if (USE_CLOUDBASE_UPLOAD) {
+    const upload = await uploadAudioFileToCloudBase({
+      filePath: params.filePath,
+      localDate: params.localDate,
+    });
+
+    return request<EntryCreateResponse, {
+      cloud_file_id: string;
+      cloud_temp_url: string;
+      duration_ms: number;
+      local_date: string;
+      client_meta: object;
+    }>("/miniapp/entries", {
+      method: "POST",
+      token: params.token,
+      data: {
+        cloud_file_id: upload.cloud_file_id,
+        cloud_temp_url: upload.cloud_temp_url,
+        duration_ms: params.durationMs,
+        local_date: params.localDate,
+        client_meta: {
+          source: "wechat-miniapp",
+          recorder: "wx.getRecorderManager",
+          storage: "cloudbase",
+          cloud_path: upload.cloud_path,
+        },
+      },
+    });
+  }
+
   const upload = await createUpload({
     token: params.token,
     fileName: `recording-${Date.now()}.mp3`,
@@ -80,6 +111,8 @@ export function getEntryResult(token: string, entryId: string): Promise<DailyBri
 export function deleteEntry(token: string, entryId: string): Promise<void> {
   return request<void>(`/miniapp/entries/${entryId}`, { method: "DELETE", token });
 }
+
+export { deleteCloudFile };
 
 export function regenerateEntry(token: string, entryId: string): Promise<EntryCreateResponse> {
   return request<EntryCreateResponse>(`/miniapp/entries/${entryId}/regenerate`, { method: "POST", token });
