@@ -38,6 +38,9 @@ export function request<TResponse, TBody = unknown>(
           resolve(res.data as TResponse);
           return;
         }
+        if (res.statusCode === 401) {
+          clearCachedSession();
+        }
         console.error("[brief-api] request failed", {
           path,
           statusCode: res.statusCode,
@@ -157,5 +160,19 @@ function formatResponseBody(data: unknown): string {
     return JSON.stringify(data).slice(0, 300);
   } catch {
     return "";
+  }
+}
+
+function clearCachedSession(): void {
+  wx.removeStorageSync("brief_token");
+  wx.removeStorageSync("brief_user");
+  try {
+    const app = getApp<{ globalData?: { token?: string | null; user?: unknown | null } }>();
+    if (app.globalData) {
+      app.globalData.token = null;
+      app.globalData.user = null;
+    }
+  } catch (error) {
+    console.warn("[brief-api] session cache clear skipped", error);
   }
 }
