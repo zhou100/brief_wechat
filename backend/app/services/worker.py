@@ -87,10 +87,14 @@ async def _process_job(db: AsyncSession, job: Job) -> None:
         await queue_svc.mark_step(db, job, "transcribing")
         await db.commit()
 
-        audio_bytes = await storage_svc.download_bytes(
-            entry.raw_audio_key,
-            entry.raw_audio_download_url,
-        )
+        try:
+            audio_bytes = await storage_svc.download_bytes(
+                entry.raw_audio_key,
+                entry.raw_audio_download_url,
+            )
+        except Exception as exc:
+            raise RuntimeError(f"audio_download_failed: {exc}") from exc
+
         suffix = os.path.splitext(entry.raw_audio_key)[1] or ".webm"
 
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
@@ -98,11 +102,14 @@ async def _process_job(db: AsyncSession, job: Job) -> None:
             tmp_path = tmp.name
 
         try:
-            with open(tmp_path, "rb") as f:
-                transcript_response = await _get_openai().audio.transcriptions.create(
-                    file=f,
-                    model="gpt-4o-mini-transcribe",
-                )
+            try:
+                with open(tmp_path, "rb") as f:
+                    transcript_response = await _get_openai().audio.transcriptions.create(
+                        file=f,
+                        model="gpt-4o-mini-transcribe",
+                    )
+            except Exception as exc:
+                raise RuntimeError(f"transcription_failed: {exc}") from exc
             raw_transcript = transcript_response.text
             logger.info(f"Raw transcript ({len(raw_transcript)} chars): {raw_transcript[:120]}...")
         finally:

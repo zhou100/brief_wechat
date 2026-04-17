@@ -258,7 +258,7 @@ async def get_job(
         status=_miniapp_job_status(job.status),
         progress=_job_progress(job),
         step=job.step,
-        error_code="job_failed" if job.status == JobStatus.FAILED else None,
+        error_code=_job_error_code(job),
         error_message=_job_error_message(job),
         result_preview=preview,
     )
@@ -436,6 +436,16 @@ def _job_progress(job: Job) -> int:
             return 75
         return 35
     return 15
+
+
+def _job_error_code(job: Job) -> Optional[str]:
+    if job.status != JobStatus.FAILED:
+        return None
+    if job.error and ":" in job.error:
+        prefix = job.error.split(":", 1)[0].strip()
+        if prefix:
+            return prefix[:80]
+    return "job_failed"
 
 
 def _job_error_message(job: Job) -> Optional[str]:

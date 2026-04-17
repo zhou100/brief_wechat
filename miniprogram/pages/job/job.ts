@@ -36,7 +36,7 @@ Page({
         stepText: job.step || statusText(job.status),
         preview: job.result_preview?.summary || "",
         failed: job.status === "failed",
-        errorMessage: job.error_message || "",
+        errorMessage: job.error_message || errorCodeText(job.error_code),
       });
 
       if (job.status === "done" && job.entry_id) {
@@ -81,4 +81,11 @@ function statusText(status: string): string {
   if (status === "done") return "已完成";
   if (status === "failed") return "处理失败";
   return "排队中";
+}
+
+function errorCodeText(code?: string): string {
+  if (code === "audio_download_failed") return "音频下载失败，请重新录音再试。";
+  if (code === "transcription_failed") return "语音转写失败，请用真机录音再试，或检查后端 OpenAI 配置。";
+  if (code === "job_failed") return "处理失败，请查看 CloudBase 服务日志。";
+  return code ? `处理失败：${code}` : "";
 }
