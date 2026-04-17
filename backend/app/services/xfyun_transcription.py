@@ -105,7 +105,6 @@ def _request_frame(chunk: bytes, seq: int, status: int, encoding: str) -> dict:
                 "eos": 1800,
                 "ptt": 1,
                 "nunum": 1,
-                "ltc": 0,
                 "result": {"encoding": "utf8", "compress": "raw", "format": "json"},
             },
         },
