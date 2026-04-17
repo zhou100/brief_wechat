@@ -7,15 +7,15 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True)
-    hashed_password = Column(String, nullable=True)
+    email = Column(String(255), unique=True, index=True)
+    hashed_password = Column(String(255), nullable=True)
     is_active = Column(Boolean, default=True)
-    google_id = Column(String, unique=True, nullable=True, index=True)
+    google_id = Column(String(255), unique=True, nullable=True, index=True)
     auth_provider = Column(String(20), default="email")  # "email" | "google" | "supabase"
     # Supabase Auth user UUID — set when using Supabase Auth
-    supabase_id = Column(String, unique=True, nullable=True, index=True)
-    wechat_openid = Column(String, unique=True, nullable=True, index=True)
-    wechat_unionid = Column(String, unique=True, nullable=True, index=True)
+    supabase_id = Column(String(255), unique=True, nullable=True, index=True)
+    wechat_openid = Column(String(128), unique=True, nullable=True, index=True)
+    wechat_unionid = Column(String(128), unique=True, nullable=True, index=True)
 
     # Relationships
     entries = relationship("Entry", back_populates="user", cascade="all, delete-orphan")

@@ -9,14 +9,14 @@ import uuid
 from sqlalchemy import (
     Column, String, Integer, ForeignKey, DateTime, Date, Text, func, Index
 )
-from sqlalchemy.dialects.postgresql import UUID, JSONB
 from .base import Base
+from .types import GUID, JSONCompat
 
 
 class WeeklyTheme(Base):
     __tablename__ = "weekly_themes"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
     title = Column(String(200), nullable=False)
@@ -33,7 +33,7 @@ class WeeklyTheme(Base):
     user_note = Column(Text, nullable=True)
 
     # evidence: list of {audit_date, snippet} pointing back to weekly reviews
-    evidence = Column(JSONB, nullable=False, default=list)
+    evidence = Column(JSONCompat, nullable=False, default=list)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

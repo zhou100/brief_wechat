@@ -318,7 +318,7 @@ async def get_entry_status(
     return EntryStatusResponse(
         entry_id=entry_id,
         job_id=str(job.id) if job else None,
-        status=job.status.value if job else "unknown",
+        status=job.status.value if job and hasattr(job.status, "value") else (job.status if job else "unknown"),
         step=job.step if job else None,
         transcript=entry.transcript,
         categories=[_category_item_from_classification(c) for c in entry.classifications],

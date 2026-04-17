@@ -14,13 +14,13 @@ logger = logging.getLogger(__name__)
 if os.getenv("TEST_MODE") == "true":
     DATABASE_URL = os.getenv(
         "TEST_DATABASE_URL",
-        "postgresql+asyncpg://postgres:postgres@localhost:5433/time_logger_test",
+        "sqlite+aiosqlite:///./test.db",
     )
     logger.info("Running in TEST mode")
 else:
     DATABASE_URL = os.getenv(
         "DATABASE_URL",
-        "postgresql+asyncpg://postgres:postgres@localhost:5432/time_logger_game",
+        "mysql+aiomysql://root:password@localhost:3306/brief_wechat",
     )
 
 _echo = os.getenv("DB_ECHO", "false").lower() == "true"
@@ -28,7 +28,7 @@ _is_production = os.getenv("ENVIRONMENT") == "production"
 
 # Supabase requires SSL — create an SSL context for production
 _connect_args = {}
-if _is_production:
+if _is_production and DATABASE_URL.startswith("postgresql"):
     ssl_ctx = _ssl.create_default_context()
     ssl_ctx.check_hostname = False
     ssl_ctx.verify_mode = _ssl.CERT_NONE

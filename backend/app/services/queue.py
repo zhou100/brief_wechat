@@ -1,5 +1,5 @@
 """
-PostgreSQL-backed job queue for the audio processing pipeline.
+SQL-backed job queue for the audio processing pipeline.
 
 Uses SELECT FOR UPDATE SKIP LOCKED so multiple workers can run safely
 without a separate message broker.

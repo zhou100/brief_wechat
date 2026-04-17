@@ -4,17 +4,17 @@ Keeping this separate allows re-running classification without touching source d
 """
 import uuid
 from sqlalchemy import Column, String, Float, Boolean, DateTime, ForeignKey, Integer, Text, func
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from .base import Base
+from .types import GUID
 
 
 class EntryClassification(Base):
     __tablename__ = "entry_classifications"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     entry_id = Column(
-        UUID(as_uuid=True),
+        GUID(),
         ForeignKey("entries.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

@@ -1,6 +1,6 @@
 """
 Worker entrypoint — run alongside the API server.
-Processes audio jobs from the PostgreSQL queue.
+Processes audio jobs from the SQL queue.
 
 Usage: python scripts/worker.py
 Docker: set command to this script in docker-compose worker service.

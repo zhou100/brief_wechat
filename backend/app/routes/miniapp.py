@@ -391,22 +391,24 @@ def _one_sentence(text: str) -> str:
     return compact[:120]
 
 
-def _miniapp_job_status(status_value: JobStatus) -> str:
-    if status_value == JobStatus.PENDING:
+def _miniapp_job_status(status_value) -> str:
+    value = status_value.value if hasattr(status_value, "value") else status_value
+    if value == JobStatus.PENDING.value:
         return "queued"
-    if status_value == JobStatus.PROCESSING:
+    if value == JobStatus.PROCESSING.value:
         return "processing"
-    if status_value == JobStatus.DONE:
+    if value == JobStatus.DONE.value:
         return "done"
     return "failed"
 
 
 def _job_progress(job: Job) -> int:
-    if job.status == JobStatus.DONE:
+    status_value = job.status.value if hasattr(job.status, "value") else job.status
+    if status_value == JobStatus.DONE.value:
         return 100
-    if job.status == JobStatus.FAILED:
+    if status_value == JobStatus.FAILED.value:
         return 100
-    if job.status == JobStatus.PROCESSING:
+    if status_value == JobStatus.PROCESSING.value:
         if job.step == "transcribing":
             return 45
         if job.step == "classifying":

@@ -4,10 +4,10 @@ Uses SELECT FOR UPDATE SKIP LOCKED for worker coordination.
 """
 import enum
 import uuid
-from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Text, Enum as SQLEnum, func, Index
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Text, func, Index
 from sqlalchemy.orm import relationship
 from .base import Base
+from .types import GUID
 
 
 class JobStatus(str, enum.Enum):
@@ -20,12 +20,12 @@ class JobStatus(str, enum.Enum):
 class Job(Base):
     __tablename__ = "jobs"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     entry_id = Column(
-        UUID(as_uuid=True), ForeignKey("entries.id", ondelete="CASCADE"), nullable=False, index=True
+        GUID(), ForeignKey("entries.id", ondelete="CASCADE"), nullable=False, index=True
     )
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    status = Column(SQLEnum(JobStatus, values_callable=lambda obj: [e.value for e in obj]), default=JobStatus.PENDING, nullable=False, index=True)
+    status = Column(String(20), default=JobStatus.PENDING.value, nullable=False, index=True)
     step = Column(String(50), nullable=True)    # "queued" | "transcribing" | "classifying" | "complete"
     error = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

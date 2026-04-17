@@ -21,9 +21,11 @@ config = context.config
 db_url = os.environ["DATABASE_URL"]
 if db_url.startswith("postgresql+asyncpg://"):
     db_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
+if db_url.startswith("mysql+aiomysql://"):
+    db_url = db_url.replace("mysql+aiomysql://", "mysql+pymysql://")
 
 # Supabase requires SSL — append sslmode=require for production
-if os.environ.get("ENVIRONMENT") == "production" and "sslmode" not in db_url:
+if db_url.startswith("postgresql") and os.environ.get("ENVIRONMENT") == "production" and "sslmode" not in db_url:
     db_url += "?sslmode=require" if "?" not in db_url else "&sslmode=require"
 
 # Set the database URL

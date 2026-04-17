@@ -5,15 +5,15 @@ Each refresh rotates the token (old jti revoked, new one issued).
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, func, Index
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from .base import Base
+from .types import GUID
 
 
 class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
 
-    jti = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    jti = Column(GUID(), primary_key=True, default=uuid.uuid4)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     issued_at = Column(DateTime(timezone=True), server_default=func.now())
     expires_at = Column(DateTime(timezone=True), nullable=False)

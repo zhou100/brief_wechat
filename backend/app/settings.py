@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
     # ── Database ──────────────────────────────────────────────────────────────
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/time_logger_game"
-    TEST_DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5433/time_logger_test"
+    DATABASE_URL: str = "mysql+aiomysql://root:password@localhost:3306/brief_wechat"
+    TEST_DATABASE_URL: str = "sqlite+aiosqlite:///./test.db"
     DB_ECHO: bool = False           # Never True in production
 
     # ── OpenAI ───────────────────────────────────────────────────────────────

@@ -4,17 +4,17 @@ Stores the core content unit: a recorded audio clip + its transcript.
 """
 import uuid
 from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Date, Text, func, Index
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from .base import Base
+from .types import GUID
 
 
 class Entry(Base):
     __tablename__ = "entries"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    raw_audio_key = Column(String, nullable=True)       # object storage key (MinIO/S3)
+    raw_audio_key = Column(String(1024), nullable=True)       # object storage key (MinIO/S3)
     transcript = Column(Text, nullable=True)            # filled by worker after Whisper
     recorded_at = Column(DateTime(timezone=True), nullable=True)   # client-reported time
     duration_seconds = Column(Integer, nullable=True)

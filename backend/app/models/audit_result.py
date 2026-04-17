@@ -4,14 +4,14 @@ Invalidated (is_stale=True) when new entries arrive for the same date.
 """
 import uuid
 from sqlalchemy import Column, String, Integer, Boolean, ForeignKey, DateTime, Date, Text, func, Index
-from sqlalchemy.dialects.postgresql import UUID
 from .base import Base
+from .types import GUID
 
 
 class AuditResult(Base):
     __tablename__ = "audit_results"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     audit_date = Column(Date, nullable=False)
     audit_type = Column(String(20), nullable=False, default="daily")  # "daily" | "weekly"

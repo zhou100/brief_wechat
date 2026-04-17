@@ -6,7 +6,7 @@ Target stack:
 WeChat Mini Program
   -> CloudBase Run / CloudBase Hosting domain
   -> FastAPI Docker backend
-  -> Tencent Cloud PostgreSQL-compatible database
+  -> CloudBase built-in MySQL
   -> Tencent COS for audio
   -> OpenAI-compatible AI pipeline from existing worker
 ```
@@ -15,14 +15,14 @@ WeChat Mini Program
 
 The backend is a Dockerized FastAPI app with an embedded worker. CloudBase Run supports containerized services, so we can deploy it without rewriting the backend into cloud functions.
 
-Do not migrate the backend to CloudBase document database in this phase. The current app relies on SQLAlchemy, Alembic, joins, indexes, and PostgreSQL semantics. Moving to a document database would be a rewrite.
+Use the CloudBase built-in MySQL database for the first production deployment. The backend models use SQLAlchemy portable UUID/JSON types so the same app can run on MySQL.
 
 ## Tencent Resources To Create
 
 1. CloudBase environment.
 2. CloudBase Run service for `time_logger_game/backend`.
 3. Tencent COS bucket for audio.
-4. PostgreSQL-compatible Tencent database.
+4. CloudBase built-in MySQL database.
 5. Mini Program legal domains:
    - request domain: CloudBase Run HTTPS domain
    - uploadFile domain: same CloudBase Run HTTPS domain
@@ -37,7 +37,7 @@ ENVIRONMENT=production
 LOG_LEVEL=INFO
 PORT=10000
 
-DATABASE_URL=postgresql+asyncpg://USER:PASSWORD@HOST:5432/DBNAME
+DATABASE_URL=mysql+aiomysql://USER:PASSWORD@HOST:3306/DBNAME?charset=utf8mb4
 SECRET_KEY=<long random secret>
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=240
@@ -77,9 +77,11 @@ backend/Dockerfile
 3. On startup, the container runs:
 
 ```text
-alembic upgrade head
+python scripts/init_db.py
 uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
 ```
+
+For MySQL deployments, the app initializes the schema from current SQLAlchemy models. The old Alembic history is retained for legacy PostgreSQL deployments but is not used for CloudBase MySQL.
 
 4. Verify:
 
