@@ -84,5 +84,6 @@ The BFF lives in `backend/` and exposes the Mini Program API without making the 
 The full Tencent Cloud target uses CloudBase Run, CloudBase MySQL, and Tencent COS. It is documented in:
 
 - `docs/tencent-cloudbase.md`
+- `docs/cloudbase-checklist.md`
 - `deployment/tencent-cloudbase-env.example`
 - `miniprogram/env.tencent.example.ts`
