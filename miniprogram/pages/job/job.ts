@@ -11,6 +11,7 @@ Page({
     stepText: "排队中",
     preview: "",
     failed: false,
+    errorMessage: "",
   },
 
   pollTimer: 0 as number,
@@ -35,6 +36,7 @@ Page({
         stepText: job.step || statusText(job.status),
         preview: job.result_preview?.summary || "",
         failed: job.status === "failed",
+        errorMessage: job.error_message || "",
       });
 
       if (job.status === "done" && job.entry_id) {

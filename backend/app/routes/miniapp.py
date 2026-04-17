@@ -74,6 +74,7 @@ class JobResponse(BaseModel):
     progress: int
     step: Optional[str] = None
     error_code: Optional[str] = None
+    error_message: Optional[str] = None
     result_preview: Optional[JobResultPreview] = None
 
 
@@ -258,6 +259,7 @@ async def get_job(
         progress=_job_progress(job),
         step=job.step,
         error_code="job_failed" if job.status == JobStatus.FAILED else None,
+        error_message=_job_error_message(job),
         result_preview=preview,
     )
 
@@ -434,6 +436,14 @@ def _job_progress(job: Job) -> int:
             return 75
         return 35
     return 15
+
+
+def _job_error_message(job: Job) -> Optional[str]:
+    if job.status != JobStatus.FAILED or not settings.MINIAPP_DEBUG_ERRORS:
+        return None
+    if not job.error:
+        return "Job failed without a stored error. Check CloudBase service logs."
+    return job.error[:300]
 
 
 def _content_type_to_suffix(content_type: str) -> str:

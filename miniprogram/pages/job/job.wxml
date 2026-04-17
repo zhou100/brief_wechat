@@ -10,6 +10,11 @@
     <text>{{preview}}</text>
   </view>
 
+  <view wx:if="{{errorMessage}}" class="panel stack">
+    <text class="section-title">失败原因</text>
+    <text>{{errorMessage}}</text>
+  </view>
+
   <button wx:if="{{failed}}" class="button" bindtap="goRecord">重新录音</button>
   <button class="button secondary" bindtap="goHome">先离开，稍后继续</button>
 </view>

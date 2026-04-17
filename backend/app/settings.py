@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     WECHAT_SECRET: str = ""
     MINIAPP_PUBLIC_BASE_URL: str = ""
     MINIAPP_DEV_OPENID: str = ""
+    MINIAPP_DEBUG_ERRORS: bool = False
     USE_CLOUDBASE_STORAGE: bool = False
 
     # ── App ───────────────────────────────────────────────────────────────────

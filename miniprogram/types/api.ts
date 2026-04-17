@@ -34,6 +34,7 @@ export type JobResponse = {
   progress?: number;
   step?: string;
   error_code?: string;
+  error_message?: string;
   result_preview?: {
     summary?: string;
   };
