@@ -68,7 +68,7 @@ async def _recover_stale_jobs(db: AsyncSession) -> None:
     stale_jobs = result.scalars().all()
     for job in stale_jobs:
         logger.warning(f"Recovering stale job {job.id} (stuck since {job.updated_at})")
-        await queue_svc.fail_job(db, job, "Worker restarted — job was stuck in PROCESSING")
+        await queue_svc.fail_job(db, job, "stale_job_recovered: worker restarted while job was processing")
     if stale_jobs:
         await db.commit()
         logger.info(f"Recovered {len(stale_jobs)} stale job(s)")
@@ -79,7 +79,7 @@ async def _process_job(db: AsyncSession, job: Job) -> None:
     result = await db.execute(select(Entry).where(Entry.id == job.entry_id))
     entry = result.scalar_one_or_none()
     if not entry:
-        await queue_svc.fail_job(db, job, "Entry not found")
+        await queue_svc.fail_job(db, job, "entry_not_found: entry not found")
         return
 
     try:

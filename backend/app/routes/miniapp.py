@@ -458,11 +458,21 @@ def _job_error_code(job: Job) -> Optional[str]:
 
 
 def _job_error_message(job: Job) -> Optional[str]:
-    if job.status != JobStatus.FAILED or not settings.MINIAPP_DEBUG_ERRORS:
+    if job.status != JobStatus.FAILED:
         return None
     if not job.error:
         return "Job failed without a stored error. Check CloudBase service logs."
-    return job.error[:300]
+    return _sanitize_job_error(job.error)
+
+
+def _sanitize_job_error(error: str) -> str:
+    text = " ".join(error.split())
+    sensitive_markers = ["api key", "authorization", "bearer ", "secret"]
+    if any(marker in text.lower() for marker in sensitive_markers):
+        if settings.MINIAPP_DEBUG_ERRORS:
+            return text[:500]
+        return "处理失败：后端密钥或第三方服务配置异常。"
+    return text[:500]
 
 
 def _content_type_to_suffix(content_type: str) -> str:
