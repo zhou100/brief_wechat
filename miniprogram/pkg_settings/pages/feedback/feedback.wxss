@@ -1,0 +1,9 @@
+.textarea {
+  min-height: 260rpx;
+  padding: 24rpx;
+  border: 1rpx solid #dbe3ee;
+  border-radius: 8rpx;
+  background: #ffffff;
+  box-sizing: border-box;
+  width: 100%;
+}

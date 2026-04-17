@@ -1,1 +1,14 @@
 time_logger_game/
+project.private.config.json
+node_modules/
+miniprogram/miniprogram_npm/
+dist/
+miniprogram/**/*.js
+miniprogram/**/*.js.map
+backend/.venv/
+backend/.pytest_cache/
+backend/**/__pycache__/
+backend/**/*.pyc
+.env
+.env.*
+!.env.example

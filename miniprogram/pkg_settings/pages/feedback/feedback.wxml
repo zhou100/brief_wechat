@@ -1,0 +1,5 @@
+<view class="page stack">
+  <text class="title">反馈</text>
+  <textarea class="textarea" placeholder="哪里不顺？" value="{{message}}" bindinput="onInput" />
+  <button class="button" bindtap="submit">发送</button>
+</view>

@@ -1,0 +1,9 @@
+<view class="page stack">
+  <view class="panel stack">
+    <text class="title">我的 Brief</text>
+    <text class="muted">{{userLabel}}</text>
+  </view>
+  <button class="button secondary" bindtap="openSettings">设置</button>
+  <button class="button secondary" bindtap="openPrivacy">隐私说明</button>
+  <button class="button secondary" bindtap="logout">退出登录</button>
+</view>

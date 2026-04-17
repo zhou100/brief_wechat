@@ -1,0 +1,38 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/record/record",
+    "pages/job/job",
+    "pages/day/day",
+    "pages/me/me"
+  ],
+  "subpackages": [
+    {
+      "root": "pkg_history",
+      "pages": [
+        "pages/history/history",
+        "pages/entry/entry",
+        "pages/share/share",
+        "pages/weekly/weekly",
+        "pages/weekly-detail/weekly-detail"
+      ]
+    },
+    {
+      "root": "pkg_settings",
+      "pages": [
+        "pages/settings/settings",
+        "pages/privacy/privacy",
+        "pages/feedback/feedback",
+        "pages/binding/binding"
+      ]
+    }
+  ],
+  "window": {
+    "navigationBarTitleText": "Brief",
+    "navigationBarBackgroundColor": "#0f172a",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f6f8fb"
+  },
+  "requiredPrivateInfos": [],
+  "sitemapLocation": "sitemap.json"
+}

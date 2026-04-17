@@ -1,0 +1,6 @@
+<view class="page stack">
+  <text class="title">周报</text>
+  <view class="panel">
+    <text class="muted">周报列表接口接入后展示可查看的周。</text>
+  </view>
+</view>

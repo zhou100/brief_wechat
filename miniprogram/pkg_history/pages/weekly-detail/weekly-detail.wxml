@@ -1,0 +1,6 @@
+<view class="page stack">
+  <text class="title">{{weekKey}}</text>
+  <view class="panel">
+    <text class="muted">这里展示结构化周报和可分享卡片。</text>
+  </view>
+</view>

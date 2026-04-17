@@ -1,0 +1,13 @@
+.section-title {
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.list-line {
+  line-height: 1.6;
+}
+
+.danger {
+  background: #fee2e2;
+  color: #991b1b;
+}

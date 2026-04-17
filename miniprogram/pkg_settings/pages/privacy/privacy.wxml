@@ -1,0 +1,8 @@
+<view class="page stack">
+  <text class="title">隐私说明</text>
+  <view class="panel stack">
+    <text>Brief 会收集你主动录制并上传的音频、转写文本、分类结果、日报和周报。</text>
+    <text>这些数据用于生成个人摘要和历史记录，不会在小程序端调用模型 API。</text>
+    <text>正式发布前，需要在微信公众平台补全用户隐私保护指引，并保证 request、uploadFile、downloadFile 合法域名配置一致。</text>
+  </view>
+</view>

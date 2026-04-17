@@ -1,0 +1,14 @@
+<view class="page stack">
+  <view class="hero stack">
+    <text class="title">说一段，Brief 帮你整理好。</text>
+    <text class="muted">录音结束后，自动生成一句话总结、关键点和 open loops。</text>
+  </view>
+
+  <button class="button" bindtap="startRecord">开始</button>
+  <button wx:if="{{activeJobId}}" class="button secondary" bindtap="resumeJob">继续处理中的记录</button>
+
+  <view class="panel stack">
+    <text class="section-title">极简闭环</text>
+    <text class="muted">录音、生成结果、分享摘要卡片。其它功能先不打扰你。</text>
+  </view>
+</view>

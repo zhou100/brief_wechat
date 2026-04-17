@@ -1,0 +1,222 @@
+# Miniapp API Contract
+
+The Mini Program is a lightweight input and sharing client. It only talks to first-party `/miniapp/*` endpoints. The backend owns transcription, summarization, storage, deletion, and regeneration.
+
+## Minimal User Flow
+
+```text
+wx.login -> /miniapp/auth/login
+record audio
+POST /miniapp/uploads/create
+wx.uploadFile
+POST /miniapp/entries
+GET /miniapp/jobs/{job_id}
+GET /miniapp/entries/{entry_id}/result
+POST /miniapp/share/cards
+```
+
+## Auth
+
+### `POST /miniapp/auth/login`
+
+Request:
+
+```json
+{ "code": "wx.login temporary code" }
+```
+
+Response:
+
+```json
+{
+  "token": "app session jwt",
+  "user": {
+    "id": "user id",
+    "display_name": "optional"
+  }
+}
+```
+
+Server behavior:
+
+- Exchange `code` server-side with WeChat.
+- Store `openid`.
+- Store `unionid` when available.
+- Issue app-owned session/JWT.
+
+## Upload
+
+### `POST /miniapp/uploads/create`
+
+Request:
+
+```json
+{
+  "fileName": "recording-1770000000000.mp3",
+  "mimeType": "audio/mpeg",
+  "durationMs": 53000,
+  "fileSize": 123456
+}
+```
+
+Response:
+
+```json
+{
+  "upload_api_url": "https://api.example.com/miniapp/uploads/audio",
+  "object_key": "raw_audio/{user_id}/{date}/{uuid}.mp3"
+}
+```
+
+Notes:
+
+- `upload_api_url` must be configured as a WeChat `uploadFile` legal domain.
+- Validate type, duration, and size server-side.
+- Bind uploaded objects to the authenticated user.
+
+## Entries
+
+### `POST /miniapp/entries`
+
+Request:
+
+```json
+{
+  "object_key": "raw_audio/{user_id}/{date}/{uuid}.mp3",
+  "duration_ms": 53000,
+  "local_date": "2026-04-16",
+  "client_meta": {
+    "source": "wechat-miniapp",
+    "recorder": "wx.getRecorderManager"
+  }
+}
+```
+
+Response:
+
+```json
+{
+  "entry_id": "uuid",
+  "job_id": "uuid"
+}
+```
+
+Server behavior:
+
+- Create entry.
+- Enqueue transcription and AI summary job.
+- Return immediately.
+
+### `GET /miniapp/entries/{entry_id}/result`
+
+Response:
+
+```json
+{
+  "entry_id": "uuid",
+  "result_id": "uuid",
+  "created_at": "2026-04-16T12:00:00Z",
+  "summary": "One sentence summary.",
+  "key_points": [
+    "Point 1",
+    "Point 2",
+    "Point 3"
+  ],
+  "open_loops": [
+    "Follow up on X"
+  ]
+}
+```
+
+Rules:
+
+- `summary` is one sentence.
+- `key_points` contains 3 to 5 items when enough content exists.
+- `open_loops` contains unfinished decisions, tasks, questions, or follow-ups.
+- Do not return full long reports in the Mini Program first path.
+
+### `DELETE /miniapp/entries/{entry_id}`
+
+Delete the user's audio, transcript, structured summary, share cards, and related job/output records where applicable.
+
+### `POST /miniapp/entries/{entry_id}/regenerate`
+
+Response:
+
+```json
+{
+  "entry_id": "uuid",
+  "job_id": "uuid"
+}
+```
+
+Re-enqueue summarization for the same uploaded audio/transcript.
+
+## Jobs
+
+### `GET /miniapp/jobs/{job_id}`
+
+Response:
+
+```json
+{
+  "job_id": "uuid",
+  "entry_id": "uuid",
+  "status": "processing",
+  "progress": 45,
+  "step": "summarizing",
+  "result_preview": {
+    "summary": "Optional partial summary"
+  }
+}
+```
+
+Allowed `status` values:
+
+- `queued`
+- `processing`
+- `done`
+- `failed`
+
+The client stores `job_id` locally so users can leave and resume polling later.
+
+## Sharing
+
+Sharing is growth-critical and must not expose the full report.
+
+### `POST /miniapp/share/cards`
+
+Request:
+
+```json
+{ "entry_id": "uuid" }
+```
+
+Response:
+
+```json
+{
+  "card": {
+    "share_id": "public-read-token",
+    "title": "我的 Brief 摘要",
+    "summary": "One sentence summary.",
+    "open_loop_count": 2,
+    "image_url": "optional generated card image"
+  }
+}
+```
+
+### `GET /miniapp/share/cards/{share_id}`
+
+Public read-only response:
+
+```json
+{
+  "share_id": "public-read-token",
+  "summary": "One sentence summary.",
+  "open_loop_count": 2,
+  "created_at": "2026-04-16T12:00:00Z"
+}
+```
+
+The share landing page must invite the recipient to start recording. It must not expose the original audio, transcript, key points, or complete open loops.

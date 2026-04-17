@@ -1,0 +1,16 @@
+<view class="page stack">
+  <view class="record-face {{recording ? 'active' : ''}}">
+    <text class="record-time">{{elapsedLabel}}</text>
+    <text class="muted">{{statusText}}</text>
+  </view>
+
+  <button wx:if="{{!recording && !uploading}}" class="button" bindtap="start">开始录音</button>
+  <button wx:elif="{{recording}}" class="button" bindtap="stop">结束并上传</button>
+  <button wx:else class="button secondary" loading="true">上传中</button>
+
+  <button wx:if="{{lastFilePath && !uploading}}" class="button secondary" bindtap="retryUpload">重试上传</button>
+
+  <view class="panel">
+    <text class="muted">说清楚你刚完成了什么、有什么结论、还有哪些没闭环。录完后会自动整理。</text>
+  </view>
+</view>

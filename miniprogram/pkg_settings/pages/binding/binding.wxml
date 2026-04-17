@@ -1,0 +1,6 @@
+<view class="page stack">
+  <text class="title">账号绑定</text>
+  <view class="panel">
+    <text class="muted">后续可在这里绑定 Web 账号，合并同一用户在 Web 和小程序里的记录。</text>
+  </view>
+</view>

@@ -1,0 +1,10 @@
+<view class="page stack">
+  <text class="title">历史记录</text>
+  <block wx:for="{{items}}" wx:key="id">
+    <view class="panel stack" data-id="{{item.id}}" bindtap="openEntry">
+      <text>{{item.local_date || item.created_at}}</text>
+      <text class="muted">{{item.transcript || "处理中或无转写"}}</text>
+    </view>
+  </block>
+  <text wx:if="{{items.length === 0}}" class="muted">还没有历史记录。</text>
+</view>

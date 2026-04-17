@@ -1,0 +1,10 @@
+<view class="page stack">
+  <view class="panel stack">
+    <text class="title">一张 Brief 摘要</text>
+    <text wx:if="{{summary}}">{{summary}}</text>
+    <text wx:else class="muted">这张摘要暂不可用。</text>
+    <text class="muted">Open loops: {{openLoopCount}}</text>
+  </view>
+
+  <button class="button" bindtap="startRecord">我也录一段</button>
+</view>

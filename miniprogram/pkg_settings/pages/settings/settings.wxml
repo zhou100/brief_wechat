@@ -1,0 +1,6 @@
+<view class="page stack">
+  <text class="title">设置</text>
+  <button class="button secondary" bindtap="openBinding">账号绑定</button>
+  <button class="button secondary" bindtap="openPrivacy">隐私说明</button>
+  <button class="button secondary" bindtap="openFeedback">反馈</button>
+</view>

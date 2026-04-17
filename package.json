@@ -1,0 +1,13 @@
+{
+  "name": "brief-wechat-miniapp",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "node ./node_modules/typescript/bin/tsc -p miniprogram/tsconfig.json",
+    "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit"
+  },
+  "devDependencies": {
+    "miniprogram-api-typings": "^4.0.7",
+    "typescript": "^5.9.3"
+  }
+}

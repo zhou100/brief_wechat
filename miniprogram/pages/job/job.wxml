@@ -1,0 +1,15 @@
+<view class="page stack">
+  <view class="panel stack">
+    <text class="title">正在整理你的内容</text>
+    <text class="muted">{{stepText}}</text>
+    <progress percent="{{progress}}" stroke-width="6" active />
+  </view>
+
+  <view wx:if="{{preview}}" class="panel stack">
+    <text class="section-title">结果预览</text>
+    <text>{{preview}}</text>
+  </view>
+
+  <button wx:if="{{failed}}" class="button" bindtap="goRecord">重新录音</button>
+  <button class="button secondary" bindtap="goHome">先离开，稍后继续</button>
+</view>
