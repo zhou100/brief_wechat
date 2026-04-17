@@ -38,7 +38,12 @@ export function request<TResponse, TBody = unknown>(
           resolve(res.data as TResponse);
           return;
         }
-        reject(new Error(`Request failed: ${res.statusCode}`));
+        console.error("[brief-api] request failed", {
+          path,
+          statusCode: res.statusCode,
+          data: res.data,
+        });
+        reject(new Error(`Request failed: ${res.statusCode} ${formatResponseBody(res.data)}`.trim()));
       },
       fail: reject,
     });
@@ -143,4 +148,14 @@ function fileSuffix(filePath: string): string {
 
 function randomString(): string {
   return Math.random().toString(36).slice(2, 10);
+}
+
+function formatResponseBody(data: unknown): string {
+  if (!data) return "";
+  if (typeof data === "string") return data.slice(0, 300);
+  try {
+    return JSON.stringify(data).slice(0, 300);
+  } catch {
+    return "";
+  }
 }

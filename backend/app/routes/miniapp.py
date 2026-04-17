@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, Field
 from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,10 +52,10 @@ class UploadCreateResponse(BaseModel):
 class EntryCreateRequest(BaseModel):
     object_key: Optional[str] = None
     cloud_file_id: Optional[str] = None
-    cloud_temp_url: Optional[HttpUrl] = None
+    cloud_temp_url: Optional[str] = None
     duration_ms: int
     local_date: Optional[str] = None
-    client_meta: Dict[str, Any] = {}
+    client_meta: Dict[str, Any] = Field(default_factory=dict)
 
 
 class EntryCreateResponse(BaseModel):
@@ -201,6 +201,8 @@ async def create_entry(
             raise HTTPException(status_code=400, detail="cloud_file_id must be a CloudBase fileID")
         if not body.cloud_temp_url:
             raise HTTPException(status_code=400, detail="cloud_temp_url is required for CloudBase uploads")
+        if not body.cloud_temp_url.startswith("https://"):
+            raise HTTPException(status_code=400, detail="cloud_temp_url must be an HTTPS URL")
         entry_id = uuid.uuid4()
     else:
         expected_prefix = f"audio/{current_user.id}/"
