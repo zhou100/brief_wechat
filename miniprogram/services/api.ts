@@ -87,12 +87,13 @@ export function uploadAudioFile(params: {
 export function uploadAudioFileToCloudBase(params: {
   filePath: string;
   localDate: string;
+  suffix?: string;
 }): Promise<CloudUploadResponse> {
   if (USE_MOCK_API) {
     return mockCloudUploadAudioFile();
   }
 
-  const suffix = fileSuffix(params.filePath);
+  const suffix = params.suffix || fileSuffix(params.filePath);
   const cloudPath = `raw_audio/${params.localDate}/${Date.now()}-${randomString()}${suffix}`;
 
   return new Promise((resolve, reject) => {

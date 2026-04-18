@@ -34,11 +34,18 @@ export async function submitRecordedEntry(params: {
   filePath: string;
   durationMs: number;
   localDate: string;
+  recorderOptions?: {
+    format: "mp3" | "aac";
+    sampleRate: number;
+    encodeBitRate: number;
+    label: string;
+  };
 }): Promise<EntryCreateResponse> {
   if (USE_CLOUDBASE_UPLOAD) {
     const upload = await uploadAudioFileToCloudBase({
       filePath: params.filePath,
       localDate: params.localDate,
+      suffix: params.recorderOptions ? `.${params.recorderOptions.format}` : undefined,
     });
 
     return request<EntryCreateResponse, {
@@ -60,6 +67,7 @@ export async function submitRecordedEntry(params: {
           recorder: "wx.getRecorderManager",
           storage: "cloudbase",
           cloud_path: upload.cloud_path,
+          recorder_options: params.recorderOptions || null,
         },
       },
     });
@@ -90,6 +98,7 @@ export async function submitRecordedEntry(params: {
         client_meta: {
           source: "wechat-miniapp",
           recorder: "wx.getRecorderManager",
+          recorder_options: params.recorderOptions || null,
         },
       },
     },

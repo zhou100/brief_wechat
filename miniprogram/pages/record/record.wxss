@@ -18,3 +18,11 @@
   font-size: 72rpx;
   font-weight: 700;
 }
+
+.preset-picker {
+  border: 1rpx solid #cbd5e1;
+  border-radius: 8rpx;
+  padding: 20rpx 24rpx;
+  color: #0f172a;
+  background: #f8fafc;
+}

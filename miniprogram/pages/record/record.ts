@@ -1,5 +1,5 @@
 import type { BriefApp } from "../../app";
-import { startRecording, stopRecording } from "../../services/recorder";
+import { RECORDING_PRESETS, startRecording, stopRecording } from "../../services/recorder";
 import { submitRecordedEntry } from "../../services/entries";
 import { formatDuration, todayLocalDate } from "../../utils/date";
 
@@ -15,14 +15,29 @@ Page({
     lastFilePath: "",
     lastDurationMs: 0,
     errorText: "",
+    presetLabels: RECORDING_PRESETS.map((preset) => preset.label),
+    selectedPresetIndex: 0,
+    selectedPresetLabel: RECORDING_PRESETS[0].label,
+    lastRecorderOptions: RECORDING_PRESETS[0],
   },
 
   timer: 0 as number,
 
+  onLoad() {
+    const storedIndex = Number(wx.getStorageSync("brief_record_preset_index") || 0);
+    const selectedPresetIndex = RECORDING_PRESETS[storedIndex] ? storedIndex : 0;
+    this.setPreset(selectedPresetIndex);
+  },
+
+  changePreset(event: WechatMiniprogram.PickerChange) {
+    this.setPreset(Number(event.detail.value || 0));
+  },
+
   async start() {
     try {
       await app.ensureLogin();
-      await startRecording();
+      const options = RECORDING_PRESETS[this.data.selectedPresetIndex] || RECORDING_PRESETS[0];
+      await startRecording(options);
       this.setData({
         recording: true,
         uploading: false,
@@ -31,6 +46,7 @@ Page({
         statusText: "正在录音",
         lastFilePath: "",
         errorText: "",
+        lastRecorderOptions: options,
       });
       this.timer = Number(setInterval(() => {
         const elapsedMs = this.data.elapsedMs + 1000;
@@ -50,8 +66,9 @@ Page({
         recording: false,
         lastFilePath: result.tempFilePath,
         lastDurationMs: Math.max(1, Math.round(result.durationMs)),
+        lastRecorderOptions: result.options,
       });
-      await this.upload(result.tempFilePath, result.durationMs);
+      await this.upload(result.tempFilePath, result.durationMs, result.options);
     } catch (error) {
       this.setData({ recording: false, uploading: false, statusText: "录音中断，请重试" });
       wx.showToast({ title: "录音中断", icon: "none" });
@@ -60,10 +77,11 @@ Page({
 
   async retryUpload() {
     if (!this.data.lastFilePath) return;
-    await this.upload(this.data.lastFilePath, this.data.lastDurationMs);
+    await this.upload(this.data.lastFilePath, this.data.lastDurationMs, this.data.lastRecorderOptions);
   },
 
-  async upload(filePath: string, durationMs: number) {
+  async upload(filePath: string, durationMs: number, recorderOptions?: (typeof RECORDING_PRESETS)[number]) {
+    const uploadOptions = recorderOptions || this.data.lastRecorderOptions;
     this.setData({ uploading: true, statusText: "正在上传" });
     wx.showLoading({ title: "上传中" });
 
@@ -74,6 +92,7 @@ Page({
         filePath,
         durationMs,
         localDate: todayLocalDate(),
+        recorderOptions: uploadOptions,
       });
       wx.setStorageSync("brief_active_job_id", entry.job_id);
       wx.hideLoading();
@@ -93,6 +112,16 @@ Page({
 
   onUnload() {
     clearInterval(this.timer);
+  },
+
+  setPreset(index: number) {
+    const preset = RECORDING_PRESETS[index] || RECORDING_PRESETS[0];
+    wx.setStorageSync("brief_record_preset_index", index);
+    this.setData({
+      selectedPresetIndex: index,
+      selectedPresetLabel: preset.label,
+      lastRecorderOptions: preset,
+    });
   },
 });
 
