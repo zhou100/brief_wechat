@@ -28,8 +28,9 @@ async def transcribe_audio(audio_bytes: bytes, suffix: str = ".mp3") -> str:
         return ""
 
     fragments: Dict[int, str] = {}
+    encoding = _audio_encoding(audio_bytes, suffix)
     async with websockets.connect(_build_auth_url(settings.XFYUN_IAT_URL), max_size=16 * 1024 * 1024) as ws:
-        sender = asyncio.create_task(_send_audio(ws, audio_bytes, _audio_encoding(suffix)))
+        sender = asyncio.create_task(_send_audio(ws, audio_bytes, encoding))
         try:
             async for raw_message in ws:
                 message = json.loads(raw_message)
@@ -77,6 +78,12 @@ def _build_auth_url(raw_url: str) -> str:
 
 
 async def _send_audio(ws, audio_bytes: bytes, encoding: str) -> None:
+    if encoding != "raw":
+        await ws.send(json.dumps(_request_frame(audio_bytes, 0, 0, encoding), ensure_ascii=False))
+        await asyncio.sleep(_FRAME_INTERVAL_SECONDS)
+        await ws.send(json.dumps(_request_frame(b"", 1, 2, encoding), ensure_ascii=False))
+        return
+
     seq = 0
     total = len(audio_bytes)
     offset = 0
@@ -142,10 +149,23 @@ def _merge_result(fragments: Dict[int, str], result: dict) -> None:
         fragments[sn] = text
 
 
-def _audio_encoding(suffix: str) -> str:
+def _audio_encoding(audio_bytes: bytes, suffix: str) -> str:
+    if _looks_like_mp3(audio_bytes):
+        return "lame"
+    if _looks_like_mp4(audio_bytes):
+        raise RuntimeError("unsupported_audio_container: iFlytek SLM IAT does not accept mp4/m4a/aac containers")
+
     clean = (suffix or "").lower()
     if clean in {".mp3", ".mpga", ".mpeg"}:
         return "lame"
     if clean == ".opus":
         return "opus"
     return "raw"
+
+
+def _looks_like_mp3(audio_bytes: bytes) -> bool:
+    return audio_bytes.startswith(b"ID3") or audio_bytes[:2] in {b"\xff\xfb", b"\xff\xf3", b"\xff\xf2"}
+
+
+def _looks_like_mp4(audio_bytes: bytes) -> bool:
+    return len(audio_bytes) > 12 and audio_bytes[4:8] == b"ftyp"
