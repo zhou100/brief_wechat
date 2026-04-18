@@ -138,6 +138,26 @@ Avoid copy that implies surveillance:
 
 Use `录音`, `讲`, `整理`.
 
+### 7. Jiangnan, Not Generic China
+
+This is a Wu-language product. It should feel closer to Jiangnan daily life than to a generic Spring Festival poster.
+
+Good cues:
+
+- White paper, warm red stamp, dark ink.
+- Subtle window-lattice dividers inspired by Jiangnan houses.
+- A quiet green accent, like lake water or old enamel signs.
+- Plain spoken copy: `讲两句`, `理清爽`, `发给家人`.
+
+Avoid:
+
+- Full-page red backgrounds.
+- Heavy gold, dragons, lanterns, firecrackers.
+- Busy coupon graphics.
+- Anything that makes the product feel like a scam ad or health supplement flyer.
+
+The right feeling is: familiar, useful, a little festive, still clean.
+
 ## Visual Language
 
 ### Brand Name
@@ -177,7 +197,10 @@ Use these as the default design tokens.
 --color-red-soft: #FFF1F2;
 --color-red-paper: #FFF6F3;
 --color-gold: #F5C542;
+--color-qing: #0F766E;
+--color-qing-soft: #ECFDF5;
 --color-ink: #161616;
+--color-ink-warm: #191514;
 --color-text: #2A2A2A;
 --color-muted: #5F6673;
 --color-border: #E7D7D2;
@@ -192,7 +215,9 @@ Rules:
 - Pressed CTA uses `--color-red-dark`.
 - Page background uses `--color-background`.
 - Panels use white or `--color-red-paper`.
+- `--color-qing` is the calm secondary accent for success, family, history, and gentle reassurance.
 - Gold is only an accent. Never use it for large areas.
+- Do not make the UI one-note red. Every screen should have at least one neutral or qing element balancing the red action.
 
 ### Typography
 
@@ -328,6 +353,27 @@ Visual:
 Small, red border, slightly stamp-like. Use sparingly.
 
 ## Screen Direction
+
+### Shared Layout
+
+Mini Program pages should follow a simple vertical rhythm:
+
+```text
+Top: clear title or state
+Middle: one readable content area
+Bottom: one sticky primary action
+```
+
+Rules:
+
+- Keep the main action within thumb reach near the bottom.
+- Keep the first screen useful without scrolling.
+- Leave at least `32rpx` horizontal padding on mobile.
+- Use one primary red CTA per screen.
+- If there are two actions, stack them vertically with the primary action first.
+- Destructive actions, like delete, should sit lower on the page and never next to the main CTA.
+
+This matters more than decorative polish. Older users should always know what just happened and what to tap next.
 
 ### Home
 
@@ -466,6 +512,34 @@ Each row shows:
 
 Do not add filters until there is enough usage to justify them.
 
+## Motion And Feedback
+
+Motion should reassure, not entertain.
+
+Use:
+
+- Light vibration when recording starts.
+- Light vibration when recording stops.
+- A steady processing indicator while the backend works.
+- A small completion stamp or check when the result is ready.
+
+Avoid:
+
+- Spinning loaders that feel endless.
+- Flashing red.
+- Confetti.
+- Complicated recording visualizers.
+
+Recommended timings:
+
+```css
+--motion-fast: 120ms;
+--motion-normal: 220ms;
+--motion-slow: 420ms;
+```
+
+State changes should be quick. Backend waiting can take longer, but the copy must keep the user oriented.
+
 ## Content Rules
 
 ### Preferred Terms
@@ -536,6 +610,10 @@ User-facing:
 
 - No body text below `30rpx`.
 - No primary touch target below `96rpx` height.
+- Preferred primary touch target is `112rpx` to `128rpx`.
+- Use line-height `1.45` to `1.65` for Chinese body text.
+- Keep result paragraphs short. Prefer bullets over long blocks.
+- Keep important content away from the very top notch and the bottom safe area.
 - Do not rely on color alone for state.
 - Keep contrast high.
 - Avoid dense paragraphs.
@@ -570,6 +648,34 @@ Not now:
 
 ## Implementation Notes
 
+### Mini Program Style Mapping
+
+The first implementation pass should create reusable global classes in `app.wxss` or a shared style file:
+
+```css
+.page-shell
+.primary-action
+.secondary-action
+.paper-panel
+.section-title
+.helper-text
+.red-stamp
+.qing-note
+```
+
+Do not hand-style every page. The product will feel more trustworthy if buttons, panels, and section labels behave the same way everywhere.
+
+### First UI Refactor Target
+
+Start with these screens:
+
+1. Home
+2. Record
+3. Processing
+4. Result
+
+History can inherit the same tokens after the core loop feels right.
+
 Current stable recording format:
 
 ```ts
@@ -592,4 +698,3 @@ CloudBase storage
 ```
 
 This lets the product lean into dialect support instead of pretending it is a generic AI recorder.
-
