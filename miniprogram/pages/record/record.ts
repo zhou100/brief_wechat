@@ -19,6 +19,7 @@ Page({
     selectedPresetIndex: 0,
     selectedPresetLabel: RECORDING_PRESETS[0].label,
     lastRecorderOptions: RECORDING_PRESETS[0],
+    showPresetPicker: false,
   },
 
   timer: 0 as number,

@@ -10,7 +10,7 @@
 
   <button wx:if="{{lastFilePath && !uploading}}" class="button secondary" bindtap="retryUpload">重试上传</button>
 
-  <view wx:if="{{!recording && !uploading}}" class="panel stack">
+  <view wx:if="{{showPresetPicker && !recording && !uploading}}" class="panel stack">
     <text class="section-title">录音格式测试</text>
     <picker mode="selector" range="{{presetLabels}}" value="{{selectedPresetIndex}}" bindchange="changePreset">
       <view class="preset-picker">{{selectedPresetLabel}}</view>
