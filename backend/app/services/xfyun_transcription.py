@@ -8,6 +8,9 @@ import base64
 import hashlib
 import hmac
 import json
+import os
+import subprocess
+import tempfile
 from datetime import datetime, timezone
 from email.utils import format_datetime
 from typing import Dict
@@ -27,10 +30,10 @@ async def transcribe_audio(audio_bytes: bytes, suffix: str = ".mp3") -> str:
     if not audio_bytes:
         return ""
 
+    pcm_bytes = _convert_to_pcm16k(audio_bytes, suffix)
     fragments: Dict[int, str] = {}
-    encoding = _audio_encoding(audio_bytes, suffix)
     async with websockets.connect(_build_auth_url(settings.XFYUN_IAT_URL), max_size=16 * 1024 * 1024) as ws:
-        sender = asyncio.create_task(_send_audio(ws, audio_bytes, encoding))
+        sender = asyncio.create_task(_send_audio(ws, pcm_bytes))
         try:
             async for raw_message in ws:
                 message = json.loads(raw_message)
@@ -77,13 +80,7 @@ def _build_auth_url(raw_url: str) -> str:
     return f"{raw_url}?{query}"
 
 
-async def _send_audio(ws, audio_bytes: bytes, encoding: str) -> None:
-    if encoding != "raw":
-        await ws.send(json.dumps(_request_frame(audio_bytes, 0, 0, encoding), ensure_ascii=False))
-        await asyncio.sleep(_FRAME_INTERVAL_SECONDS)
-        await ws.send(json.dumps(_request_frame(b"", 1, 2, encoding), ensure_ascii=False))
-        return
-
+async def _send_audio(ws, audio_bytes: bytes) -> None:
     seq = 0
     total = len(audio_bytes)
     offset = 0
@@ -95,13 +92,13 @@ async def _send_audio(ws, audio_bytes: bytes, encoding: str) -> None:
         if offset >= total:
             status = 2
 
-        await ws.send(json.dumps(_request_frame(chunk, seq, status, encoding), ensure_ascii=False))
+        await ws.send(json.dumps(_request_frame(chunk, seq, status), ensure_ascii=False))
         seq += 1
         if status != 2:
             await asyncio.sleep(_FRAME_INTERVAL_SECONDS)
 
 
-def _request_frame(chunk: bytes, seq: int, status: int, encoding: str) -> dict:
+def _request_frame(chunk: bytes, seq: int, status: int) -> dict:
     return {
         "header": {"app_id": settings.XFYUN_APP_ID, "status": status},
         "parameter": {
@@ -117,7 +114,7 @@ def _request_frame(chunk: bytes, seq: int, status: int, encoding: str) -> dict:
         },
         "payload": {
             "audio": {
-                "encoding": encoding,
+                "encoding": "raw",
                 "sample_rate": 16000,
                 "channels": 1,
                 "bit_depth": 16,
@@ -149,23 +146,53 @@ def _merge_result(fragments: Dict[int, str], result: dict) -> None:
         fragments[sn] = text
 
 
-def _audio_encoding(audio_bytes: bytes, suffix: str) -> str:
-    if _looks_like_mp3(audio_bytes):
-        return "lame"
-    if _looks_like_mp4(audio_bytes):
-        raise RuntimeError("unsupported_audio_container: iFlytek SLM IAT does not accept mp4/m4a/aac containers")
+def _convert_to_pcm16k(audio_bytes: bytes, suffix: str) -> bytes:
+    input_path = None
+    output_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=suffix or ".audio", delete=False) as input_file:
+            input_file.write(audio_bytes)
+            input_path = input_file.name
+        with tempfile.NamedTemporaryFile(suffix=".pcm", delete=False) as output_file:
+            output_path = output_file.name
 
-    clean = (suffix or "").lower()
-    if clean in {".mp3", ".mpga", ".mpeg"}:
-        return "lame"
-    if clean == ".opus":
-        return "opus"
-    return "raw"
+        result = subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-i",
+                input_path,
+                "-ac",
+                "1",
+                "-ar",
+                "16000",
+                "-f",
+                "s16le",
+                "-acodec",
+                "pcm_s16le",
+                output_path,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=45,
+            check=False,
+        )
+        if result.returncode != 0:
+            error = (result.stderr or result.stdout or "unknown ffmpeg error").strip()
+            raise RuntimeError(f"audio_convert_failed: {error[:500]}")
 
-
-def _looks_like_mp3(audio_bytes: bytes) -> bool:
-    return audio_bytes.startswith(b"ID3") or audio_bytes[:2] in {b"\xff\xfb", b"\xff\xf3", b"\xff\xf2"}
-
-
-def _looks_like_mp4(audio_bytes: bytes) -> bool:
-    return len(audio_bytes) > 12 and audio_bytes[4:8] == b"ftyp"
+        with open(output_path, "rb") as output_file:
+            converted = output_file.read()
+        if not converted:
+            raise RuntimeError("audio_convert_failed: ffmpeg produced empty audio")
+        return converted
+    finally:
+        for path in [input_path, output_path]:
+            if path:
+                try:
+                    os.unlink(path)
+                except OSError:
+                    pass
