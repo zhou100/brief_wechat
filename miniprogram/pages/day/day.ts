@@ -11,7 +11,7 @@ import {
   updateItemText,
 } from "../../services/entries";
 import type { CategoryGroup, HistoryItem, ShareCard } from "../../types/api";
-import { formatDuration, todayLocalDate } from "../../utils/date";
+import { addLocalDays, formatDayLabel, formatDuration, sanitizeLocalDate, todayLocalDate } from "../../utils/date";
 import { jobErrorText, userFacingError } from "../../utils/errors";
 
 const app = getApp<BriefApp>();
@@ -20,6 +20,9 @@ Page({
   data: {
     entryId: "",
     date: "",
+    today: "",
+    dateLabel: "今天",
+    isToday: true,
     createdAt: "",
     summary: "",
     keyPoints: [] as string[],
@@ -34,6 +37,7 @@ Page({
     stopping: false,
     uploading: false,
     processing: false,
+    dateNavDisabled: false,
     elapsedMs: 0,
     elapsedLabel: "0:00",
     statusText: "",
@@ -45,11 +49,18 @@ Page({
 
   recordTimer: 0 as number,
   pollTimer: 0 as number,
+  loadRequestId: 0 as number,
+  shareRequestId: 0 as number,
+  recordingDate: "" as string,
 
   onLoad(query: Record<string, string | undefined>) {
     const entryId = query.entry_id || "";
-    const date = query.date || todayLocalDate();
-    this.setData({ entryId, date });
+    const today = todayLocalDate();
+    const date = sanitizeLocalDate(query.date, today) || today;
+    this.setData({
+      entryId,
+      ...dateViewState(date, today),
+    });
     this.load(entryId, date);
   },
 
@@ -61,9 +72,11 @@ Page({
   },
 
   async load(entryId: string, date: string) {
+    const requestId = ++this.loadRequestId;
     try {
       const token = await app.ensureLogin();
       const result = await loadResult(token, entryId, date);
+      if (requestId !== this.loadRequestId) return;
       this.setData({
         entryId: result.entry_id,
         createdAt: result.created_at,
@@ -81,13 +94,59 @@ Page({
         this.prepareShare(false);
       }
     } catch (error) {
+      if (requestId !== this.loadRequestId) return;
       wx.showToast({ title: "今天内容暂时打不开", icon: "none" });
     }
   },
 
+  switchDate(date: string) {
+    if (this.data.dateNavDisabled) return;
+    const today = todayLocalDate();
+    const nextDate = sanitizeLocalDate(date, today);
+    if (!nextDate) {
+      wx.showToast({ title: "不能选未来的日期", icon: "none" });
+      return;
+    }
+    this.setData({
+      entryId: "",
+      createdAt: "",
+      summary: "",
+      keyPoints: [],
+      openLoops: [],
+      categoryGroups: [],
+      entries: [],
+      entryCount: 0,
+      contentCount: 0,
+      shareCard: null,
+      errorText: "",
+      editingItemId: "",
+      editDraft: "",
+      ...dateViewState(nextDate, today),
+    });
+    this.load("", nextDate);
+  },
+
+  goPreviousDay() {
+    this.switchDate(addLocalDays(this.data.date || todayLocalDate(), -1));
+  },
+
+  goNextDay() {
+    if (this.data.isToday) return;
+    this.switchDate(addLocalDays(this.data.date || todayLocalDate(), 1));
+  },
+
+  goToday() {
+    this.switchDate(todayLocalDate());
+  },
+
+  selectDate(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
+    this.switchDate(event.detail.value);
+  },
+
   async startRecord() {
     if (this.data.starting || this.data.recording || this.data.stopping || this.data.uploading || this.data.processing) return;
-    this.setData({ starting: true, errorText: "", statusText: "正在准备录音。" });
+    this.recordingDate = this.data.date || todayLocalDate();
+    this.setData({ starting: true, dateNavDisabled: true, errorText: "", statusText: "正在准备录音。" });
     try {
       await app.ensureLogin();
       const options = RECORDING_PRESETS[0];
@@ -98,6 +157,7 @@ Page({
         recording: true,
         stopping: false,
         uploading: false,
+        dateNavDisabled: true,
         errorText: "",
         elapsedMs: 0,
         elapsedLabel: "0:00",
@@ -108,8 +168,9 @@ Page({
         this.setData({ elapsedMs, elapsedLabel: formatDuration(elapsedMs) });
       }, 1000));
     } catch (error) {
+      this.recordingDate = "";
       wx.showToast({ title: "录音没打开", icon: "none" });
-      this.setData({ starting: false, statusText: "录音没打开，请再试一次" });
+      this.setData({ starting: false, dateNavDisabled: false, statusText: "录音没打开，请再试一次" });
     }
   },
 
@@ -119,6 +180,7 @@ Page({
     this.setData({
       recording: false,
       stopping: true,
+      dateNavDisabled: true,
       errorText: "",
       statusText: "收到了，正在收尾。",
     });
@@ -127,10 +189,12 @@ Page({
       vibrate();
       await this.upload(result.tempFilePath, result.durationMs);
     } catch (error) {
+      this.recordingDate = "";
       this.setData({
         recording: false,
         stopping: false,
         uploading: false,
+        dateNavDisabled: false,
         statusText: "这段没录上，请再讲一遍",
       });
       wx.showToast({ title: "这段没录上", icon: "none" });
@@ -143,13 +207,14 @@ Page({
       stopping: false,
       uploading: true,
       processing: true,
+      dateNavDisabled: true,
       errorText: "",
       statusText: "收到了，正在整理刚才这段。",
     });
 
     try {
       const token = await app.ensureLogin();
-      const localDate = todayLocalDate();
+      const localDate = this.recordingDate || this.data.date || todayLocalDate();
       const entry = await submitRecordedEntry({
         token,
         filePath,
@@ -157,16 +222,19 @@ Page({
         localDate,
         recorderOptions: RECORDING_PRESETS[0],
       });
-      this.setData({ date: localDate });
+      this.recordingDate = "";
+      this.setData(dateViewState(localDate, todayLocalDate()));
       wx.setStorageSync("brief_active_job_id", entry.job_id);
       this.startPolling(entry.job_id);
       wx.showToast({ title: "正在整理", icon: "none" });
     } catch (error) {
+      this.recordingDate = "";
       const message = userFacingError(error, "这段没传上去，请再试一次。");
       console.error("[brief-day] upload failed", error);
       this.setData({
         uploading: false,
         processing: false,
+        dateNavDisabled: false,
         statusText: "这段没传上去",
         errorText: message,
       });
@@ -180,6 +248,7 @@ Page({
       activeJobId: jobId,
       processing: true,
       uploading: false,
+      dateNavDisabled: true,
       statusText: "正在整理刚才这段。",
       errorText: "",
     });
@@ -200,8 +269,9 @@ Page({
           activeJobId: "",
           processing: false,
           uploading: false,
-          statusText: "刚才这段已经放进今天了。",
-          date,
+          dateNavDisabled: false,
+          statusText: `刚才这段已经放进${formatDayLabel(date, todayLocalDate())}了。`,
+          ...dateViewState(date, todayLocalDate()),
         });
         await this.load(job.entry_id || this.data.entryId, date);
         return;
@@ -214,6 +284,7 @@ Page({
           activeJobId: "",
           processing: false,
           uploading: false,
+          dateNavDisabled: false,
           statusText: "这段没听清，请再讲一遍。",
           errorText: jobErrorText(job.error_code, job.error_message),
         });
@@ -228,12 +299,16 @@ Page({
 
   async prepareShare(showError = true) {
     if (!this.data.date && !this.data.entryId) return;
+    const requestId = ++this.shareRequestId;
+    const date = this.data.date;
+    const entryId = this.data.entryId;
     try {
       const token = await app.ensureLogin();
       const response = await createShareCard(token, {
-        date: this.data.date,
-        entryId: this.data.date ? undefined : this.data.entryId,
+        date,
+        entryId: date ? undefined : entryId,
       });
+      if (requestId !== this.shareRequestId || date !== this.data.date || entryId !== this.data.entryId) return;
       this.setData({ shareCard: response.card });
     } catch (error) {
       if (showError) {
@@ -296,7 +371,7 @@ Page({
       title: card?.title || "今天已经整理清爽了",
       path: shareId
         ? `/pkg_history/pages/share/share?share_id=${shareId}`
-        : "/pages/day/day",
+        : `/pages/day/day?date=${this.data.date || todayLocalDate()}`,
       imageUrl: card?.image_url,
     };
   },
@@ -326,6 +401,15 @@ async function loadResult(token: string, entryId: string, date: string) {
     return getDailyBrief(token, date || todayLocalDate());
   }
   return getEntryResult(token, entryId);
+}
+
+function dateViewState(date: string, today = todayLocalDate()) {
+  return {
+    date,
+    today,
+    dateLabel: formatDayLabel(date, today),
+    isToday: date === today,
+  };
 }
 
 type ViewCategoryGroup = CategoryGroup & {

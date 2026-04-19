@@ -2,7 +2,35 @@
   <view class="stack">
     <text class="red-stamp">{{processing ? '整理中' : '今日'}}</text>
     <text class="title">今日清爽</text>
-    <text class="muted">今天讲了 {{entryCount}} 段，整理出 {{contentCount}} 条内容。</text>
+    <view class="date-nav">
+      <button
+        class="date-nav-button {{dateNavDisabled ? 'disabled' : ''}}"
+        aria-label="前一天"
+        disabled="{{dateNavDisabled}}"
+        bindtap="goPreviousDay"
+      >‹</button>
+      <picker
+        class="date-picker"
+        mode="date"
+        value="{{date}}"
+        end="{{today}}"
+        disabled="{{dateNavDisabled}}"
+        bindchange="selectDate"
+      >
+        <view class="date-picker-trigger">
+          <text class="date-label">{{dateLabel}}</text>
+          <text class="date-picker-hint">点一下选日期</text>
+        </view>
+      </picker>
+      <button
+        class="date-nav-button {{isToday || dateNavDisabled ? 'disabled' : ''}}"
+        aria-label="后一天"
+        disabled="{{isToday || dateNavDisabled}}"
+        bindtap="goNextDay"
+      >›</button>
+    </view>
+    <button wx:if="{{!isToday}}" class="today-jump {{dateNavDisabled ? 'disabled' : ''}}" disabled="{{dateNavDisabled}}" bindtap="goToday">回到今天</button>
+    <text class="muted">{{dateLabel}}讲了 {{entryCount}} 段，整理出 {{contentCount}} 条内容。</text>
   </view>
 
   <view wx:if="{{entryCount == 0 && !recording && !starting && !stopping && !uploading && !processing}}" class="brand-mini stack">
@@ -63,7 +91,7 @@
   </view>
 
   <view wx:else class="panel stack">
-    <text class="section-title">今天还空着</text>
+    <text class="section-title">{{dateLabel}}还空着</text>
     <text class="muted">讲一段以后，这里会按“做过的事、要办的事、买汰烧、学到的”等分类放好。</text>
   </view>
 
