@@ -11,6 +11,7 @@ wx.cloud.uploadFile
 wx.cloud.getTempFileURL
 POST /miniapp/entries
 GET /miniapp/jobs/{job_id}
+GET /miniapp/daily/{date}
 GET /miniapp/entries/{entry_id}/result
 POST /miniapp/share/cards
 ```
@@ -88,6 +89,50 @@ Server behavior:
 - Create entry.
 - Enqueue transcription and AI summary job.
 - Return immediately.
+
+### `GET /miniapp/daily/{date}`
+
+Returns the completed entries for one local calendar date.
+
+Request path:
+
+```text
+/miniapp/daily/2026-04-19
+```
+
+Response:
+
+```json
+{
+  "entry_id": "latest-entry-uuid",
+  "date": "2026-04-19",
+  "created_at": "2026-04-19T12:00:00Z",
+  "summary": "One sentence daily summary.",
+  "key_points": [
+    "Point 1",
+    "Point 2"
+  ],
+  "open_loops": [
+    "Follow up on X"
+  ],
+  "entries": [
+    {
+      "id": "entry-uuid",
+      "local_date": "2026-04-19",
+      "created_at": "2026-04-19T12:00:00Z",
+      "duration_seconds": 53,
+      "categories": []
+    }
+  ],
+  "category_groups": []
+}
+```
+
+Rules:
+
+- `date` is `YYYY-MM-DD` in the user's local calendar.
+- Future dates should not be requested by the Mini Program.
+- Empty days return a friendly empty daily result rather than a client crash.
 
 ### `GET /miniapp/entries/{entry_id}/result`
 
@@ -172,6 +217,12 @@ Request:
 
 ```json
 { "entry_id": "uuid" }
+```
+
+or:
+
+```json
+{ "date": "2026-04-19" }
 ```
 
 Response:

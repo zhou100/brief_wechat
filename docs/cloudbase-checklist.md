@@ -92,13 +92,14 @@ GET /health
 POST /miniapp/auth/login
 POST /miniapp/entries
 GET /miniapp/jobs/{job_id}
+GET /miniapp/daily/{date}
 GET /miniapp/entries/{entry_id}/result
 ```
 
 Mini Program:
 
 ```text
-home -> record -> stop -> wx.cloud.uploadFile -> job -> result -> share
+home -> day -> pick date -> record -> stop -> wx.cloud.uploadFile -> job -> daily result -> share
 ```
 
 ## Important Notes

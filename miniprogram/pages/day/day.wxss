@@ -24,6 +24,91 @@
   line-height: 1.45;
 }
 
+.date-nav {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.date-nav-button {
+  width: 72rpx;
+  height: 72rpx;
+  min-height: 72rpx;
+  border: 2rpx solid #e7d7d2;
+  border-radius: 8rpx;
+  background: #ffffff;
+  color: #b91c1c;
+  font-size: 46rpx;
+  font-weight: 700;
+  line-height: 66rpx;
+  padding: 0;
+  box-shadow: none;
+  flex-shrink: 0;
+}
+
+.date-nav-button.disabled {
+  color: #a8a29e;
+  background: #f3eee9;
+}
+
+.date-nav-button::after,
+.today-jump::after {
+  border: 0;
+}
+
+.date-picker {
+  flex: 1;
+  min-width: 0;
+}
+
+.date-picker-trigger {
+  min-width: 0;
+  min-height: 72rpx;
+  border: 2rpx solid #e7d7d2;
+  border-radius: 8rpx;
+  background: #ffffff;
+  padding: 8rpx 22rpx;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+}
+
+.date-label {
+  color: #191514;
+  font-size: 34rpx;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.date-picker-hint {
+  color: #5f6673;
+  font-size: 22rpx;
+  line-height: 1.2;
+  margin-top: 4rpx;
+}
+
+.today-jump {
+  align-self: flex-start;
+  min-height: 56rpx;
+  border: 2rpx solid #f3b4b8;
+  border-radius: 8rpx;
+  background: #fff1f2;
+  color: #b91c1c;
+  font-size: 26rpx;
+  font-weight: 700;
+  line-height: 56rpx;
+  padding: 0 20rpx;
+  margin: -8rpx 0 0;
+}
+
+.today-jump.disabled {
+  color: #a8a29e;
+  background: #f3eee9;
+  border-color: #e7d7d2;
+}
+
 .talk-panel {
   border: 2rpx solid #f3b4b8;
   border-radius: 8rpx;

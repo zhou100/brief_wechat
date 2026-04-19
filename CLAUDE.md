@@ -42,6 +42,14 @@ wsl.exe -d Ubuntu --cd /home/yujunz/llm_projects/brief_wechat -- git switch -c m
 
 Then run `/ship`. This keeps CloudBase/GitHub deploy changes reviewable and avoids pushing a large working tree directly to `main`.
 
+Every `/ship` must maintain the release tracking files:
+
+- `VERSION` uses 4-part semantic format: `MAJOR.MINOR.PATCH.MICRO`.
+- `CHANGELOG.md` gets a dated entry for the shipped version.
+- `TODOS.md` records deferred work and moves completed items to `## Completed`.
+
+If any of those files are missing, create them during `/ship` instead of skipping the release tracking step.
+
 ## Design System
 
 Always read `DESIGN.md` before making visual or UI decisions.
