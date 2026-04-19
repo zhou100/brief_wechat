@@ -50,7 +50,16 @@
     <text wx:if="{{errorText}}" class="error-text">{{errorText}}</text>
   </view>
 
-  <view wx:if="{{categoryGroups.length > 0}}" class="stack">
+  <view wx:if="{{entryCount > 0 || contentCount > 0}}" class="view-tabs">
+    <button class="view-tab {{viewMode === 'category' ? 'active' : ''}}" bindtap="showCategoryView">按分类看</button>
+    <button class="view-tab {{viewMode === 'timeline' ? 'active' : ''}}" bindtap="showTimelineView">按讲话顺序看</button>
+  </view>
+
+  <view wx:if="{{viewMode === 'category' && categoryGroups.length > 0}}" class="stack">
+    <view class="result-intro stack">
+      <text class="section-title">整理好了</text>
+      <text class="muted">已做的归档，还要做的单独放。</text>
+    </view>
     <block wx:for="{{categoryGroups}}" wx:key="category" wx:for-item="group">
       <view class="panel stack category-card {{group.accentClass}}">
         <view class="category-heading">
@@ -90,9 +99,22 @@
     </block>
   </view>
 
+  <view wx:elif="{{viewMode === 'timeline' && entries.length > 0}}" class="panel stack">
+    <text class="section-title">按讲话顺序看</text>
+    <text class="muted">这里尽量保留原来的转写，方便你校对和回想。</text>
+    <block wx:for="{{entries}}" wx:key="id" wx:for-item="entry" wx:for-index="entryIndex">
+      <view class="category-line timeline-entry">
+        <text class="list-index">{{entryIndex + 1}}</text>
+        <view class="line-main">
+          <text class="list-line">{{entry.transcript || '这段没有转写出来'}}</text>
+        </view>
+      </view>
+    </block>
+  </view>
+
   <view wx:else class="panel stack">
     <text class="section-title">{{dateLabel}}还空着</text>
-    <text class="muted">讲一段以后，这里会按“做过的事、要办的事、买汰烧、学到的”等分类放好。</text>
+    <text class="muted">讲一段以后，这里会按“办事体、买汰烧、照顾家人、还要做”等分类放好。</text>
   </view>
 
   <view wx:if="{{contentCount > 0}}" class="share-area">

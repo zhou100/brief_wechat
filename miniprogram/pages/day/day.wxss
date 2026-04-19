@@ -136,6 +136,37 @@
   line-height: 1.6;
 }
 
+.view-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12rpx;
+}
+
+.view-tab {
+  min-height: 72rpx;
+  border: 2rpx solid #e7d7d2;
+  border-radius: 8rpx;
+  background: #ffffff;
+  color: #5f6673;
+  font-size: 30rpx;
+  font-weight: 700;
+  line-height: 72rpx;
+}
+
+.view-tab.active {
+  border-color: #e11d2e;
+  background: #fff1f2;
+  color: #b91c1c;
+}
+
+.view-tab::after {
+  border: 0;
+}
+
+.result-intro {
+  padding: 4rpx 0;
+}
+
 .category-card {
   border-left-width: 10rpx;
 }
@@ -158,6 +189,11 @@
   display: flex;
   align-items: flex-start;
   gap: 18rpx;
+}
+
+.timeline-entry + .timeline-entry {
+  padding-top: 22rpx;
+  border-top: 2rpx solid #f1e5e1;
 }
 
 .list-index {

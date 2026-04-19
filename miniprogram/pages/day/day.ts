@@ -45,6 +45,7 @@ Page({
     errorText: "",
     editingItemId: "",
     editDraft: "",
+    viewMode: "category" as "category" | "timeline",
   },
 
   recordTimer: 0 as number,
@@ -77,17 +78,20 @@ Page({
       const token = await app.ensureLogin();
       const result = await loadResult(token, entryId, date);
       if (requestId !== this.loadRequestId) return;
+      const categoryGroups = viewCategoryGroups(result.category_groups || [], result.key_points || [], result.open_loops || []);
+      const entries = result.entries || [];
       this.setData({
         entryId: result.entry_id,
         createdAt: result.created_at,
         summary: result.summary,
         keyPoints: result.key_points || [],
         openLoops: result.open_loops || [],
-        categoryGroups: viewCategoryGroups(result.category_groups || [], result.key_points || [], result.open_loops || []),
-        entries: result.entries || [],
-        entryCount: result.entries?.length || (result.entry_id ? 1 : 0),
+        categoryGroups,
+        entries,
+        entryCount: entries.length || (result.entry_id ? 1 : 0),
         contentCount: countContent(result.category_groups || [], result.key_points || []),
         shareCard: result.share_card || null,
+        viewMode: categoryGroups.length > 0 ? this.data.viewMode : entries.length > 0 ? "timeline" : "category",
       });
       const hasShareableContent = Boolean(result.entry_id) || Boolean(result.entries?.length);
       if (!result.share_card && hasShareableContent) {
@@ -121,6 +125,7 @@ Page({
       errorText: "",
       editingItemId: "",
       editDraft: "",
+      viewMode: "category",
       ...dateViewState(nextDate, today),
     });
     this.load("", nextDate);
@@ -331,6 +336,14 @@ Page({
     this.setData({ editingItemId: "", editDraft: "" });
   },
 
+  showCategoryView() {
+    this.setData({ viewMode: "category" });
+  },
+
+  showTimelineView() {
+    this.setData({ viewMode: "timeline" });
+  },
+
   async saveEdit(event: WechatMiniprogram.TouchEvent) {
     const { itemId } = event.currentTarget.dataset as { itemId?: string };
     if (!itemId) return;
@@ -434,7 +447,7 @@ function viewCategoryGroups(
   if (openLoops.length > 0) {
     fallback.push({
       category: "TODO",
-      label: "要办的事",
+      label: "还要做",
       helper: categoryHelper("TODO"),
       accentClass: "category-todo",
       items: openLoops.map((text) => ({ text, category: "TODO" })),
@@ -454,14 +467,14 @@ function viewCategoryGroups(
 
 function categoryHelper(category: CategoryGroup["category"]): string {
   const helpers: Record<CategoryGroup["category"], string> = {
-    TODO: "要办、要记、要提醒家里人的事。",
+    TODO: "明确还没做、需要记住的事。",
     MAITAISHAO: "买菜、汰菜、烧菜这些日常事。",
     EXPERIMENT: "可以试试的办法。",
-    REFLECTION: "想法、感受、提醒，先留着以后看。",
-    EARNING: "今天已经做过、办过、处理过的事。",
+    REFLECTION: "想到的感受、判断和以后可回看的话。",
+    EARNING: "今天已经办过、处理过的事。",
     LEARNING: "今天听到、看到、琢磨明白的东西。",
-    FAMILY: "家人、家务、照顾人的事情。",
-    RELAXING: "休息、锻炼、娱乐、出门走走。",
+    FAMILY: "照顾家人、陪家人、为家里人跑的事。",
+    RELAXING: "休息、锻炼、娱乐。",
     TIME_RECORD: "时间记录。",
   };
   return helpers[category] || "";
