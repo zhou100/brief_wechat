@@ -14,7 +14,8 @@ First version:
 
 - record and upload audio with CloudBase native storage
 - poll backend job status
-- show structured result:
+- show a date-scoped day page with previous/next navigation and a native date picker
+- show structured daily result:
   - one-sentence summary
   - 3 to 5 key points
   - open loops
@@ -36,7 +37,7 @@ Deferred:
 
 ```text
 miniprogram/
-  pages/                 main package: index, record, job, result, me
+  pages/                 main package: index, record/job/day, me
   pkg_history/           subpackage: history stubs and read-only share landing
   pkg_settings/          subpackage: settings, privacy, feedback, binding
   services/              auth, request, upload, entry APIs, recorder
@@ -70,6 +71,7 @@ The Mini Program expects a first-party BFF layer:
 - `POST /miniapp/auth/login`
 - `POST /miniapp/entries`
 - `GET /miniapp/jobs/{job_id}`
+- `GET /miniapp/daily/{date}`
 - `GET /miniapp/entries/{entry_id}/result`
 - `DELETE /miniapp/entries/{entry_id}`
 - `POST /miniapp/entries/{entry_id}/regenerate`

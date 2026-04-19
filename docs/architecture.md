@@ -20,7 +20,7 @@ The Mini Program owns:
 2. Audio capture via `wx.getRecorderManager`.
 3. Audio upload via `wx.cloud.uploadFile`.
 4. Job polling and resume after leaving the app.
-5. Structured result display:
+5. Date-scoped day navigation and structured daily result display:
    - summary
    - 3 to 5 key points
    - open loops
@@ -55,7 +55,7 @@ Main package:
 - `/pages/index`: one start action and resume prompt.
 - `/pages/record`: start/stop recording, duration, upload retry.
 - `/pages/job`: clear processing state and polling.
-- `/pages/day`: single-entry structured result page.
+- `/pages/day`: date-scoped recording and structured daily result page.
 - `/pages/me`: account and privacy entry.
 
 Subpackages:
