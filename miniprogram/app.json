@@ -1,9 +1,9 @@
 {
   "pages": [
+    "pages/day/day",
     "pages/index/index",
     "pages/record/record",
     "pages/job/job",
-    "pages/day/day",
     "pages/me/me"
   ],
   "subpackages": [

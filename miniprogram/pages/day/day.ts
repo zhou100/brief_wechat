@@ -1,15 +1,18 @@
 import type { BriefApp } from "../../app";
+import { JOB_POLL_INTERVAL_MS } from "../../env";
+import { RECORDING_PRESETS, startRecording, stopRecording } from "../../services/recorder";
 import {
   createShareCard,
-  deleteCloudFile,
-  deleteEntry,
+  deleteItem,
   getDailyBrief,
   getEntryResult,
-  regenerateEntry,
+  getJob,
+  submitRecordedEntry,
+  updateItemText,
 } from "../../services/entries";
 import type { CategoryGroup, HistoryItem, ShareCard } from "../../types/api";
-import { todayLocalDate } from "../../utils/date";
-import { userFacingError } from "../../utils/errors";
+import { formatDuration, todayLocalDate } from "../../utils/date";
+import { jobErrorText, userFacingError } from "../../utils/errors";
 
 const app = getApp<BriefApp>();
 
@@ -25,15 +28,36 @@ Page({
     entries: [] as HistoryItem[],
     entryCount: 0,
     contentCount: 0,
-    cloudFileId: "",
     shareCard: null as ShareCard | null,
+    starting: false,
+    recording: false,
+    stopping: false,
+    uploading: false,
+    processing: false,
+    elapsedMs: 0,
+    elapsedLabel: "0:00",
+    statusText: "",
+    activeJobId: "",
+    errorText: "",
+    editingItemId: "",
+    editDraft: "",
   },
+
+  recordTimer: 0 as number,
+  pollTimer: 0 as number,
 
   onLoad(query: Record<string, string | undefined>) {
     const entryId = query.entry_id || "";
     const date = query.date || todayLocalDate();
     this.setData({ entryId, date });
     this.load(entryId, date);
+  },
+
+  onShow() {
+    const activeJobId = wx.getStorageSync("brief_active_job_id") || "";
+    if (activeJobId && activeJobId !== this.data.activeJobId) {
+      this.startPolling(activeJobId);
+    }
   },
 
   async load(entryId: string, date: string) {
@@ -50,7 +74,6 @@ Page({
         entries: result.entries || [],
         entryCount: result.entries?.length || (result.entry_id ? 1 : 0),
         contentCount: countContent(result.category_groups || [], result.key_points || []),
-        cloudFileId: result.cloud_file_id || "",
         shareCard: result.share_card || null,
       });
       const hasShareableContent = Boolean(result.entry_id) || Boolean(result.entries?.length);
@@ -58,7 +81,148 @@ Page({
         this.prepareShare(false);
       }
     } catch (error) {
-      wx.showToast({ title: "结果暂时打不开", icon: "none" });
+      wx.showToast({ title: "今天内容暂时打不开", icon: "none" });
+    }
+  },
+
+  async startRecord() {
+    if (this.data.starting || this.data.recording || this.data.stopping || this.data.uploading || this.data.processing) return;
+    this.setData({ starting: true, errorText: "", statusText: "正在准备录音。" });
+    try {
+      await app.ensureLogin();
+      const options = RECORDING_PRESETS[0];
+      await startRecording(options);
+      vibrate();
+      this.setData({
+        starting: false,
+        recording: true,
+        stopping: false,
+        uploading: false,
+        errorText: "",
+        elapsedMs: 0,
+        elapsedLabel: "0:00",
+        statusText: "正在听你讲",
+      });
+      this.recordTimer = Number(setInterval(() => {
+        const elapsedMs = this.data.elapsedMs + 1000;
+        this.setData({ elapsedMs, elapsedLabel: formatDuration(elapsedMs) });
+      }, 1000));
+    } catch (error) {
+      wx.showToast({ title: "录音没打开", icon: "none" });
+      this.setData({ starting: false, statusText: "录音没打开，请再试一次" });
+    }
+  },
+
+  async stopRecord() {
+    if (!this.data.recording || this.data.stopping || this.data.uploading || this.data.processing) return;
+    clearInterval(this.recordTimer);
+    this.setData({
+      recording: false,
+      stopping: true,
+      errorText: "",
+      statusText: "收到了，正在收尾。",
+    });
+    try {
+      const result = await stopRecording();
+      vibrate();
+      await this.upload(result.tempFilePath, result.durationMs);
+    } catch (error) {
+      this.setData({
+        recording: false,
+        stopping: false,
+        uploading: false,
+        statusText: "这段没录上，请再讲一遍",
+      });
+      wx.showToast({ title: "这段没录上", icon: "none" });
+    }
+  },
+
+  async upload(filePath: string, durationMs: number) {
+    this.setData({
+      recording: false,
+      stopping: false,
+      uploading: true,
+      processing: true,
+      errorText: "",
+      statusText: "收到了，正在整理刚才这段。",
+    });
+
+    try {
+      const token = await app.ensureLogin();
+      const localDate = todayLocalDate();
+      const entry = await submitRecordedEntry({
+        token,
+        filePath,
+        durationMs,
+        localDate,
+        recorderOptions: RECORDING_PRESETS[0],
+      });
+      this.setData({ date: localDate });
+      wx.setStorageSync("brief_active_job_id", entry.job_id);
+      this.startPolling(entry.job_id);
+      wx.showToast({ title: "正在整理", icon: "none" });
+    } catch (error) {
+      const message = userFacingError(error, "这段没传上去，请再试一次。");
+      console.error("[brief-day] upload failed", error);
+      this.setData({
+        uploading: false,
+        processing: false,
+        statusText: "这段没传上去",
+        errorText: message,
+      });
+      wx.showToast({ title: "没传上去", icon: "none" });
+    }
+  },
+
+  startPolling(jobId: string) {
+    clearInterval(this.pollTimer);
+    this.setData({
+      activeJobId: jobId,
+      processing: true,
+      uploading: false,
+      statusText: "正在整理刚才这段。",
+      errorText: "",
+    });
+    this.pollJob();
+    this.pollTimer = Number(setInterval(() => this.pollJob(), JOB_POLL_INTERVAL_MS));
+  },
+
+  async pollJob() {
+    if (!this.data.activeJobId) return;
+    try {
+      const token = await app.ensureLogin();
+      const job = await getJob(token, this.data.activeJobId);
+      if (job.status === "done") {
+        clearInterval(this.pollTimer);
+        wx.removeStorageSync("brief_active_job_id");
+        const date = job.local_date || this.data.date || todayLocalDate();
+        this.setData({
+          activeJobId: "",
+          processing: false,
+          uploading: false,
+          statusText: "刚才这段已经放进今天了。",
+          date,
+        });
+        await this.load(job.entry_id || this.data.entryId, date);
+        return;
+      }
+
+      if (job.status === "failed") {
+        clearInterval(this.pollTimer);
+        wx.removeStorageSync("brief_active_job_id");
+        this.setData({
+          activeJobId: "",
+          processing: false,
+          uploading: false,
+          statusText: "这段没听清，请再讲一遍。",
+          errorText: jobErrorText(job.error_code, job.error_message),
+        });
+        return;
+      }
+
+      this.setData({ statusText: job.step?.includes("classif") ? "快好了，正在分门别类。" : "正在听懂你讲的话。" });
+    } catch (error) {
+      this.setData({ statusText: "网络有点慢，还在继续整理。" });
     }
   },
 
@@ -78,48 +242,51 @@ Page({
     }
   },
 
-  async regenerate() {
-    if (!this.data.entryId) return;
-    wx.showLoading({ title: "重新整理" });
+  startEdit(event: WechatMiniprogram.TouchEvent) {
+    const { itemId, text } = event.currentTarget.dataset as { itemId?: string; text?: string };
+    if (!itemId) return;
+    this.setData({ editingItemId: itemId, editDraft: text || "" });
+  },
+
+  updateEditDraft(event: WechatMiniprogram.Input) {
+    this.setData({ editDraft: event.detail.value });
+  },
+
+  cancelEdit() {
+    this.setData({ editingItemId: "", editDraft: "" });
+  },
+
+  async saveEdit(event: WechatMiniprogram.TouchEvent) {
+    const { itemId } = event.currentTarget.dataset as { itemId?: string };
+    if (!itemId) return;
     try {
       const token = await app.ensureLogin();
-      const response = await regenerateEntry(token, this.data.entryId);
-      wx.setStorageSync("brief_active_job_id", response.job_id);
-      wx.hideLoading();
-      wx.redirectTo({ url: `/pages/job/job?job_id=${response.job_id}` });
+      await updateItemText(token, itemId, this.data.editDraft);
+      this.setData({ editingItemId: "", editDraft: "" });
+      await this.load(this.data.entryId, this.data.date || todayLocalDate());
     } catch (error) {
-      wx.hideLoading();
-      wx.showToast({ title: userFacingError(error, "重新整理没成功"), icon: "none" });
+      wx.showToast({ title: "没改成功", icon: "none" });
     }
   },
 
-  deleteCurrent() {
-    if (!this.data.entryId) return;
+  deleteThing(event: WechatMiniprogram.TouchEvent) {
+    const { itemId } = event.currentTarget.dataset as { itemId?: string };
+    if (!itemId) return;
     wx.showModal({
-      title: "删除刚才这段？",
-      content: "删除后，这段录音和整理结果都会移除。今天其它记录会保留。",
+      title: "删掉这条？",
+      content: "只删这一条整理出来的内容，不会删整段录音。",
       confirmText: "删除",
       success: async (res) => {
         if (!res.confirm) return;
         try {
           const token = await app.ensureLogin();
-          await deleteEntry(token, this.data.entryId);
-          if (this.data.cloudFileId) {
-            deleteCloudFile(this.data.cloudFileId).catch((error) => {
-              console.warn("[brief-cloud] delete file failed", error);
-            });
-          }
-          wx.showToast({ title: "已删除", icon: "success" });
-          wx.reLaunch({ url: "/pages/index/index" });
+          await deleteItem(token, itemId);
+          await this.load(this.data.entryId, this.data.date || todayLocalDate());
         } catch (error) {
-          wx.showToast({ title: "删除没成功", icon: "none" });
+          wx.showToast({ title: "没删成功", icon: "none" });
         }
       },
     });
-  },
-
-  recordMore() {
-    wx.navigateTo({ url: "/pages/record/record" });
   },
 
   onShareAppMessage() {
@@ -129,9 +296,20 @@ Page({
       title: card?.title || "今天已经整理清爽了",
       path: shareId
         ? `/pkg_history/pages/share/share?share_id=${shareId}`
-        : "/pages/index/index",
+        : "/pages/day/day",
       imageUrl: card?.image_url,
     };
+  },
+
+  onHide() {
+    if (this.data.activeJobId) {
+      wx.setStorageSync("brief_active_job_id", this.data.activeJobId);
+    }
+  },
+
+  onUnload() {
+    clearInterval(this.recordTimer);
+    clearInterval(this.pollTimer);
   },
 });
 
@@ -182,7 +360,7 @@ function viewCategoryGroups(
     fallback.push({
       category: "REFLECTION",
       label: "刚才讲到",
-      helper: "先把原话理出来，后面多讲几段会更清楚。",
+      helper: categoryHelper("REFLECTION"),
       accentClass: "category-reflection",
       items: keyPoints.map((text) => ({ text, category: "REFLECTION" })),
     });
@@ -192,9 +370,9 @@ function viewCategoryGroups(
 
 function categoryHelper(category: CategoryGroup["category"]): string {
   const helpers: Record<CategoryGroup["category"], string> = {
-    TODO: "明确要做的事，适合发给家人帮忙记一下。",
-    MAITAISHAO: "买菜、汰菜、烧菜这些日常事，单独放一栏。",
-    EXPERIMENT: "可以试试的办法，不一定今天就要办。",
+    TODO: "要办、要记、要提醒家里人的事。",
+    MAITAISHAO: "买菜、汰菜、烧菜这些日常事。",
+    EXPERIMENT: "可以试试的办法。",
     REFLECTION: "想法、感受、提醒，先留着以后看。",
     EARNING: "今天已经做过、办过、处理过的事。",
     LEARNING: "今天听到、看到、琢磨明白的东西。",
@@ -208,4 +386,12 @@ function categoryHelper(category: CategoryGroup["category"]): string {
 function countContent(groups: CategoryGroup[], keyPoints: string[]): number {
   const total = groups.reduce((sum, group) => sum + group.items.length, 0);
   return total || keyPoints.length;
+}
+
+function vibrate() {
+  try {
+    wx.vibrateShort({ type: "light" });
+  } catch (error) {
+    console.warn("[brief-day] vibrate unavailable", error);
+  }
 }

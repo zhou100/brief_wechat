@@ -123,6 +123,18 @@ export function deleteEntry(token: string, entryId: string): Promise<void> {
 
 export { deleteCloudFile };
 
+export function updateItemText(token: string, itemId: string, text: string): Promise<void> {
+  return request<void, { edited_text: string }>(`/miniapp/items/${itemId}`, {
+    method: "POST",
+    token,
+    data: { edited_text: text },
+  });
+}
+
+export function deleteItem(token: string, itemId: string): Promise<void> {
+  return request<void>(`/miniapp/items/${itemId}`, { method: "DELETE", token });
+}
+
 export function regenerateEntry(token: string, entryId: string): Promise<EntryCreateResponse> {
   return request<EntryCreateResponse>(`/miniapp/entries/${entryId}/regenerate`, { method: "POST", token });
 }

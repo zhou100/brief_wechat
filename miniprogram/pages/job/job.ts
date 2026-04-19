@@ -57,14 +57,14 @@ Page({
   },
 
   goRecord() {
-    wx.redirectTo({ url: "/pages/record/record" });
+    wx.redirectTo({ url: "/pages/day/day" });
   },
 
   goHome() {
     if (this.data.jobId && !this.data.failed) {
       wx.setStorageSync("brief_active_job_id", this.data.jobId);
     }
-    wx.reLaunch({ url: "/pages/index/index" });
+    wx.redirectTo({ url: "/pages/day/day" });
   },
 
   onHide() {
@@ -80,7 +80,7 @@ Page({
 
 function statusText(status: string, step?: string, progress = 0): string {
   if (status === "done") return "整理好了";
-  if (status === "failed") return "请再讲一遍";
+  if (status === "failed") return "回到今天再处理";
   if (status === "processing") {
     if (step?.includes("summar")) return "正在帮你理清爽";
     if (progress >= 75) return "快好了";

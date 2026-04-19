@@ -1,27 +1,17 @@
-import type { BriefApp } from "../../app";
-import { userFacingError } from "../../utils/errors";
-
-const app = getApp<BriefApp>();
-
 Page({
-  data: {
-    activeJobId: "",
+  redirected: false,
+
+  onLoad() {
+    this.goToday();
   },
 
   onShow() {
-    this.setData({ activeJobId: wx.getStorageSync("brief_active_job_id") || "" });
+    this.goToday();
   },
 
-  async startRecord() {
-    try {
-      await app.ensureLogin();
-      wx.navigateTo({ url: "/pages/record/record" });
-    } catch (error) {
-      wx.showToast({ title: userFacingError(error, "暂时进不去，请再试一次"), icon: "none" });
-    }
-  },
-
-  resumeJob() {
-    wx.navigateTo({ url: `/pages/job/job?job_id=${this.data.activeJobId}` });
+  goToday() {
+    if (this.redirected) return;
+    this.redirected = true;
+    wx.redirectTo({ url: "/pages/day/day" });
   },
 });
