@@ -1,13 +1,71 @@
-.section-title {
-  font-size: 30rpx;
+.result-page {
+  gap: 32rpx;
+}
+
+.category-card {
+  border-left-width: 10rpx;
+}
+
+.category-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.category-count {
+  flex-shrink: 0;
+  color: #5f6673;
+  font-size: 28rpx;
   font-weight: 700;
 }
 
-.list-line {
-  line-height: 1.6;
+.category-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 18rpx;
 }
 
-.danger {
-  background: #fee2e2;
-  color: #991b1b;
+.list-index {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 8rpx;
+  background: #fff1f2;
+  color: #b91c1c;
+  font-size: 26rpx;
+  font-weight: 700;
+  line-height: 40rpx;
+  text-align: center;
+  flex-shrink: 0;
+  margin-top: 4rpx;
+}
+
+.list-line {
+  flex: 1;
+  color: #2a2a2a;
+  font-size: 34rpx;
+  line-height: 1.65;
+}
+
+.category-todo {
+  border-left-color: #e11d2e;
+}
+
+.category-experiment {
+  border-left-color: #f5c542;
+}
+
+.category-maitaishao {
+  border-left-color: #d97706;
+}
+
+.category-reflection {
+  border-left-color: #0f766e;
+}
+
+.category-earning,
+.category-learning,
+.category-family,
+.category-relaxing {
+  border-left-color: #e7d7d2;
 }

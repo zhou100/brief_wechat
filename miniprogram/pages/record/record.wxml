@@ -1,14 +1,17 @@
-<view class="page stack">
+<view class="page page-shell stack record-page">
   <view class="record-face {{recording ? 'active' : ''}}">
+    <text class="red-stamp">{{recording ? '正在讲' : '准备好了'}}</text>
     <text class="record-time">{{elapsedLabel}}</text>
-    <text class="muted">{{statusText}}</text>
+    <text class="record-status">{{statusText}}</text>
   </view>
 
-  <button wx:if="{{!recording && !uploading}}" class="button" bindtap="start">开始录音</button>
-  <button wx:elif="{{recording}}" class="button" bindtap="stop">结束并上传</button>
-  <button wx:else class="button secondary" loading="true">上传中</button>
+  <view class="bottom-actions">
+    <button wx:if="{{!recording && !uploading}}" class="primary-action" bindtap="start">开始讲</button>
+    <button wx:elif="{{recording}}" class="primary-action" bindtap="stop">讲好了，帮我整理</button>
+    <button wx:else class="secondary-action" loading="true">正在送去整理</button>
 
-  <button wx:if="{{lastFilePath && !uploading}}" class="button secondary" bindtap="retryUpload">重试上传</button>
+    <button wx:if="{{lastFilePath && !uploading}}" class="secondary-action" bindtap="retryUpload">重试上传</button>
+  </view>
 
   <view wx:if="{{showPresetPicker && !recording && !uploading}}" class="panel stack">
     <text class="section-title">录音格式测试</text>
@@ -19,11 +22,11 @@
   </view>
 
   <view wx:if="{{errorText}}" class="panel stack">
-    <text class="section-title">上传失败原因</text>
+    <text class="section-title">这段没传上去</text>
     <text>{{errorText}}</text>
   </view>
 
-  <view class="panel">
-    <text class="muted">说清楚你刚完成了什么、有什么结论、还有哪些没闭环。录完后会自动整理。</text>
+  <view class="panel qing-note">
+    <text class="helper-text">不需要想格式，像平时讲话一样。录完后会自动整理。</text>
   </view>
 </view>

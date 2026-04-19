@@ -2,6 +2,7 @@ import type { BriefApp } from "../../app";
 import { RECORDING_PRESETS, startRecording, stopRecording } from "../../services/recorder";
 import { submitRecordedEntry } from "../../services/entries";
 import { formatDuration, todayLocalDate } from "../../utils/date";
+import { userFacingError } from "../../utils/errors";
 
 const app = getApp<BriefApp>();
 
@@ -11,7 +12,7 @@ Page({
     uploading: false,
     elapsedMs: 0,
     elapsedLabel: "0:00",
-    statusText: "准备开始",
+    statusText: "点一下开始讲",
     lastFilePath: "",
     lastDurationMs: 0,
     errorText: "",
@@ -39,12 +40,13 @@ Page({
       await app.ensureLogin();
       const options = RECORDING_PRESETS[this.data.selectedPresetIndex] || RECORDING_PRESETS[0];
       await startRecording(options);
+      vibrate();
       this.setData({
         recording: true,
         uploading: false,
         elapsedMs: 0,
         elapsedLabel: "0:00",
-        statusText: "正在录音",
+        statusText: "正在听你讲",
         lastFilePath: "",
         errorText: "",
         lastRecorderOptions: options,
@@ -54,8 +56,8 @@ Page({
         this.setData({ elapsedMs, elapsedLabel: formatDuration(elapsedMs) });
       }, 1000));
     } catch (error) {
-      this.setData({ statusText: "录音不可用" });
-      wx.showToast({ title: "无法使用录音", icon: "none" });
+      this.setData({ statusText: "录音没打开，请再试一次" });
+      wx.showToast({ title: "录音没打开", icon: "none" });
     }
   },
 
@@ -63,6 +65,7 @@ Page({
     clearInterval(this.timer);
     try {
       const result = await stopRecording();
+      vibrate();
       this.setData({
         recording: false,
         lastFilePath: result.tempFilePath,
@@ -71,8 +74,8 @@ Page({
       });
       await this.upload(result.tempFilePath, result.durationMs, result.options);
     } catch (error) {
-      this.setData({ recording: false, uploading: false, statusText: "录音中断，请重试" });
-      wx.showToast({ title: "录音中断", icon: "none" });
+      this.setData({ recording: false, uploading: false, statusText: "这段没录上，请再讲一遍" });
+      wx.showToast({ title: "这段没录上", icon: "none" });
     }
   },
 
@@ -83,8 +86,8 @@ Page({
 
   async upload(filePath: string, durationMs: number, recorderOptions?: (typeof RECORDING_PRESETS)[number]) {
     const uploadOptions = recorderOptions || this.data.lastRecorderOptions;
-    this.setData({ uploading: true, statusText: "正在上传" });
-    wx.showLoading({ title: "上传中" });
+    this.setData({ uploading: true, statusText: "正在送去整理" });
+    wx.showLoading({ title: "正在整理" });
 
     try {
       const token = await app.ensureLogin();
@@ -100,14 +103,14 @@ Page({
       wx.redirectTo({ url: `/pages/job/job?job_id=${entry.job_id}` });
     } catch (error) {
       wx.hideLoading();
-      const message = readableError(error);
+      const message = userFacingError(error, "这段没传上去，请再试一次。");
       console.error("[brief-record] upload failed", error);
       this.setData({
         uploading: false,
-        statusText: "上传失败，可重试",
+        statusText: "这段没传上去，可重试",
         errorText: message,
       });
-      wx.showToast({ title: "上传失败", icon: "none" });
+      wx.showToast({ title: "没传上去", icon: "none" });
     }
   },
 
@@ -126,16 +129,10 @@ Page({
   },
 });
 
-function readableError(error: unknown): string {
-  if (!error) return "未知错误，请查看真机调试 Console。";
-  if (error instanceof Error && error.message) return error.message;
-  if (typeof error === "string") return error;
-  const maybe = error as { errMsg?: string; message?: string };
-  if (maybe.errMsg) return maybe.errMsg;
-  if (maybe.message) return maybe.message;
+function vibrate() {
   try {
-    return JSON.stringify(error);
-  } catch {
-    return "未知错误，请查看真机调试 Console。";
+    wx.vibrateShort({ type: "light" });
+  } catch (error) {
+    console.warn("[brief-record] vibrate unavailable", error);
   }
 }

@@ -1,4 +1,5 @@
 import type { BriefApp } from "../../app";
+import { userFacingError } from "../../utils/errors";
 
 const app = getApp<BriefApp>();
 
@@ -16,7 +17,7 @@ Page({
       await app.ensureLogin();
       wx.navigateTo({ url: "/pages/record/record" });
     } catch (error) {
-      wx.showToast({ title: "登录失败", icon: "none" });
+      wx.showToast({ title: userFacingError(error, "暂时进不去，请再试一次"), icon: "none" });
     }
   },
 
