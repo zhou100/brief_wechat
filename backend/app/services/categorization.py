@@ -16,8 +16,9 @@ tasks, ideas, and notes from the transcript and return them as a JSON array.
 Categories — two dimensions:
 
 Activity categories (how the user spent time):
-- EARNING: work, meetings, deep work, side projects, clients, commute to work
-- LEARNING: reading, courses, research, practice, skill-building
+- EARNING: things the user did or handled; work, errands, appointments, meetings, projects
+- LEARNING: something learned, read, practiced, researched, or figured out
+- MAITAISHAO: 买汰烧; grocery shopping, buying food, washing/prepping vegetables, cooking, kitchen chores
 - RELAXING: exercise, rest, hobbies, entertainment, social outings, naps
 - FAMILY: family time, caregiving, family errands, partner time
 
@@ -30,6 +31,7 @@ Disambiguation rules:
 - Work lunch / business dinner = EARNING (primary intent is work)
 - Gym / exercise = RELAXING (even if it feels productive)
 - Reading for a work project = EARNING; reading for personal growth = LEARNING
+- Buying vegetables, washing vegetables (汰菜), meal prep, and cooking = MAITAISHAO
 - Commute to work = EARNING; running family errands = FAMILY
 - When an activity serves multiple categories, classify by primary intent.
 - If the user suggests a future change ("maybe we should", "what if", "it might help to"),
@@ -53,7 +55,7 @@ Only provide a number when the transcript explicitly states or strongly implies 
 
 Return valid JSON array only, with this shape:
 [
-  {"text": "specific activity or note text", "category": "EARNING|LEARNING|RELAXING|FAMILY|TODO|EXPERIMENT|REFLECTION", "estimated_minutes": <integer or null>},
+  {"text": "specific activity or note text", "category": "EARNING|LEARNING|MAITAISHAO|RELAXING|FAMILY|TODO|EXPERIMENT|REFLECTION", "estimated_minutes": <integer or null>},
   ...
 ]
 
@@ -78,6 +80,12 @@ Output: [
   {"text": "Reading about distributed systems for an hour", "category": "LEARNING", "estimated_minutes": 60},
   {"text": "Picked up kids from school and helped with homework", "category": "FAMILY", "estimated_minutes": 90},
   {"text": "Document environment setup better", "category": "EXPERIMENT", "estimated_minutes": null}
+]
+
+Input: "早上去买菜，回来汰菜，烧了两个菜。下午学会了怎么设置小程序常驻实例。"
+Output: [
+  {"text": "去买菜、汰菜、烧了两个菜", "category": "MAITAISHAO", "estimated_minutes": null},
+  {"text": "学会设置小程序常驻实例", "category": "LEARNING", "estimated_minutes": null}
 ]
 
 Input: "The afternoon felt scattered and reactive. It might help to start recordings \
@@ -119,7 +127,17 @@ async def categorize_text(text: str) -> List[Dict[str, Any]]:
         if not isinstance(results, list) or not results:
             raise ValueError("LLM returned empty or non-list result")
 
-        _VALID_CATEGORIES = {"EARNING", "LEARNING", "RELAXING", "FAMILY", "TODO", "EXPERIMENT", "REFLECTION", "TIME_RECORD"}
+        _VALID_CATEGORIES = {
+            "EARNING",
+            "LEARNING",
+            "MAITAISHAO",
+            "RELAXING",
+            "FAMILY",
+            "TODO",
+            "EXPERIMENT",
+            "REFLECTION",
+            "TIME_RECORD",
+        }
         valid = [
             r for r in results
             if isinstance(r, dict) and r.get("text") and r.get("category") in _VALID_CATEGORIES

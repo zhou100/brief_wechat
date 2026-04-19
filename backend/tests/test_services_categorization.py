@@ -27,7 +27,7 @@ async def test_single_entry_todo():
     payload = json.dumps([{"text": "Fix the login bug", "category": "TODO"}])
     mock_create = AsyncMock(return_value=_mock_openai_response(payload))
 
-    with patch("app.services.categorization._get_client") as mock_client:
+    with patch("app.services.categorization.get_chat_client") as mock_client:
         mock_client.return_value.chat.completions.create = mock_create
         result = await categorize_text("I need to fix the login bug tomorrow.")
 
@@ -48,7 +48,7 @@ async def test_multi_entry_extraction():
     payload = json.dumps(items)
     mock_create = AsyncMock(return_value=_mock_openai_response(payload))
 
-    with patch("app.services.categorization._get_client") as mock_client:
+    with patch("app.services.categorization.get_chat_client") as mock_client:
         mock_client.return_value.chat.completions.create = mock_create
         result = await categorize_text(
             "This morning I worked on the dashboard for about 2 hours. "
@@ -69,6 +69,7 @@ async def test_all_valid_categories_accepted():
     items = [
         {"text": "A", "category": "EARNING"},
         {"text": "B", "category": "LEARNING"},
+        {"text": "B2", "category": "MAITAISHAO"},
         {"text": "C", "category": "RELAXING"},
         {"text": "D", "category": "FAMILY"},
         {"text": "E", "category": "TODO"},
@@ -78,17 +79,17 @@ async def test_all_valid_categories_accepted():
     ]
     mock_create = AsyncMock(return_value=_mock_openai_response(json.dumps(items)))
 
-    with patch("app.services.categorization._get_client") as mock_client:
+    with patch("app.services.categorization.get_chat_client") as mock_client:
         mock_client.return_value.chat.completions.create = mock_create
         result = await categorize_text("Some transcript text covering many topics.")
 
-    assert len(result) == 8
+    assert len(result) == 9
     # TIME_RECORD remapped to EARNING
     assert {r["category"] for r in result} == {
-        "EARNING", "LEARNING", "RELAXING", "FAMILY",
+        "EARNING", "LEARNING", "MAITAISHAO", "RELAXING", "FAMILY",
         "TODO", "EXPERIMENT", "REFLECTION",
     }
-    assert result[7]["category"] == "EARNING"  # was TIME_RECORD
+    assert result[8]["category"] == "EARNING"  # was TIME_RECORD
 
 
 # ── Fallback: empty / malformed LLM response ─────────────────────────────────
@@ -98,7 +99,7 @@ async def test_empty_array_from_llm_falls_back_to_thought():
     """LLM returns [] → fallback to single REFLECTION entry with full transcript."""
     mock_create = AsyncMock(return_value=_mock_openai_response("[]"))
 
-    with patch("app.services.categorization._get_client") as mock_client:
+    with patch("app.services.categorization.get_chat_client") as mock_client:
         mock_client.return_value.chat.completions.create = mock_create
         result = await categorize_text("This is my transcript.")
 
@@ -112,7 +113,7 @@ async def test_malformed_json_falls_back_to_thought():
     """LLM returns invalid JSON → fallback to single REFLECTION entry."""
     mock_create = AsyncMock(return_value=_mock_openai_response("not valid json {{{"))
 
-    with patch("app.services.categorization._get_client") as mock_client:
+    with patch("app.services.categorization.get_chat_client") as mock_client:
         mock_client.return_value.chat.completions.create = mock_create
         result = await categorize_text("My transcript here.")
 
@@ -127,7 +128,7 @@ async def test_single_dict_instead_of_list_falls_back():
     old_format = json.dumps({"category": "TODO", "content": "do something", "confidence": 0.9})
     mock_create = AsyncMock(return_value=_mock_openai_response(old_format))
 
-    with patch("app.services.categorization._get_client") as mock_client:
+    with patch("app.services.categorization.get_chat_client") as mock_client:
         mock_client.return_value.chat.completions.create = mock_create
         result = await categorize_text("do something")
 
@@ -140,7 +141,7 @@ async def test_api_exception_falls_back_to_thought():
     """OpenAI API call raises an exception → fallback to REFLECTION, no crash."""
     mock_create = AsyncMock(side_effect=Exception("Network error"))
 
-    with patch("app.services.categorization._get_client") as mock_client:
+    with patch("app.services.categorization.get_chat_client") as mock_client:
         mock_client.return_value.chat.completions.create = mock_create
         result = await categorize_text("Something happened today.")
 
