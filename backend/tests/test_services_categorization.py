@@ -7,7 +7,7 @@ import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.services.categorization import categorize_text
+from app.services.categorization import SYSTEM_PROMPT, categorize_text
 
 
 def _mock_openai_response(content: str):
@@ -17,6 +17,13 @@ def _mock_openai_response(content: str):
     response = MagicMock()
     response.choices = [choice]
     return response
+
+
+def test_prompt_defaults_daily_narration_to_done_categories():
+    assert "Default assumption" in SYSTEM_PROMPT
+    assert "not TODO" in SYSTEM_PROMPT
+    assert "今天早上" in SYSTEM_PROMPT
+    assert "提醒我" in SYSTEM_PROMPT
 
 
 # ── Happy path ────────────────────────────────────────────────────────────────

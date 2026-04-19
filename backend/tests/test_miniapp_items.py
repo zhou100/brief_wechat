@@ -33,11 +33,11 @@ def _override_db(app_instance, db_mock):
     app_instance.dependency_overrides[get_db] = _fake_get_db
 
 
-def _classification(text="买点青菜", status="open"):
+def _classification(text="买点青菜", status="open", category="MAITAISHAO"):
     item = MagicMock()
     item.id = uuid.uuid4()
     item.entry_id = uuid.uuid4()
-    item.category = "MAITAISHAO"
+    item.category = category
     item.extracted_text = text
     item.edited_text = None
     item.display_text = text
@@ -139,4 +139,30 @@ def test_daily_result_filters_dismissed_items():
             "category": "MAITAISHAO",
             "estimated_minutes": None,
         }
+    ]
+
+
+def test_daily_result_groups_done_categories_before_followups():
+    from app.routes.miniapp import _daily_result
+
+    earning = _classification(text="上午办完证件", category="EARNING")
+    todo = _classification(text="明天提醒我买菜", category="TODO")
+    reflection = _classification(text="今天安排太碎了", category="REFLECTION")
+    family = _classification(text="下午接小孩回家", category="FAMILY")
+    entry = _entry(earning)
+    entry.classifications = [todo, reflection, earning, family]
+
+    result = _daily_result([entry], "2026-04-18")
+
+    assert [group["category"] for group in result.category_groups] == [
+        "EARNING",
+        "FAMILY",
+        "TODO",
+        "REFLECTION",
+    ]
+    assert [group["label"] for group in result.category_groups] == [
+        "办事体",
+        "照顾家人",
+        "还要做",
+        "感悟",
     ]

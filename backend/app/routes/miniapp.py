@@ -575,7 +575,7 @@ def _daily_summary(entries: List[Entry], lines: List[str]) -> str:
 
 
 def _category_groups(classifications: List[EntryClassification]) -> List[Dict[str, Any]]:
-    category_order = ["TODO", "MAITAISHAO", "EXPERIMENT", "REFLECTION", "EARNING", "LEARNING", "FAMILY", "RELAXING"]
+    category_order = ["EARNING", "MAITAISHAO", "FAMILY", "LEARNING", "RELAXING", "TODO", "EXPERIMENT", "REFLECTION"]
     grouped: Dict[str, List[Dict[str, Any]]] = {category: [] for category in category_order}
     for classification in classifications:
         category = classification.category if classification.category in grouped else "REFLECTION"
@@ -601,14 +601,14 @@ def _category_groups(classifications: List[EntryClassification]) -> List[Dict[st
 
 def _category_label(category: str) -> str:
     labels = {
-        "TODO": "要办的事",
+        "TODO": "还要做",
         "MAITAISHAO": "买汰烧",
         "EXPERIMENT": "可以试试",
-        "REFLECTION": "想法提醒",
-        "EARNING": "做过的事",
+        "REFLECTION": "感悟",
+        "EARNING": "办事体",
         "LEARNING": "学到的",
-        "FAMILY": "家里事情",
-        "RELAXING": "休息活动",
+        "FAMILY": "照顾家人",
+        "RELAXING": "休息",
         "TIME_RECORD": "时间记录",
     }
     return labels.get(category, category)

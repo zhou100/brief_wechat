@@ -157,23 +157,8 @@ function mockBrief(): DailyBrief {
     ],
     category_groups: [
       {
-        category: "TODO",
-        label: "要办的事",
-        items: [
-          { text: "把结果页改成今日清爽", category: "TODO" },
-          { text: "把分类逻辑展示出来", category: "TODO" },
-        ],
-      },
-      {
-        category: "REFLECTION",
-        label: "想法提醒",
-        items: [
-          { text: "单条录音摘要太单薄，应该按每天累积", category: "REFLECTION" },
-        ],
-      },
-      {
         category: "EARNING",
-        label: "做过的事",
+        label: "办事体",
         items: [
           { text: "微信小程序录音、上传、处理和结果页面已经跑通", category: "EARNING" },
         ],
@@ -183,6 +168,21 @@ function mockBrief(): DailyBrief {
         label: "买汰烧",
         items: [
           { text: "早上买菜、汰菜、烧了两个菜", category: "MAITAISHAO" },
+        ],
+      },
+      {
+        category: "TODO",
+        label: "还要做",
+        items: [
+          { text: "把结果页改成今日清爽", category: "TODO" },
+          { text: "把分类逻辑展示出来", category: "TODO" },
+        ],
+      },
+      {
+        category: "REFLECTION",
+        label: "感悟",
+        items: [
+          { text: "单条录音摘要太单薄，应该按每天累积", category: "REFLECTION" },
         ],
       },
     ],

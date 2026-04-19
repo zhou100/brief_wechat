@@ -28,6 +28,13 @@ Capture categories (follow-up items):
 - REFLECTION: an observation, feeling, reaction, lesson, or pattern the user noticed
 
 Disambiguation rules:
+- Default assumption: if the user is narrating what happened today, classify it
+  as an activity category, not TODO.
+- Only classify TODO when the transcript clearly says the item is still undone,
+  future, a reminder, or something to remember. Chinese examples include:
+  "明天要", "等会要", "还没", "需要去", "记得", "别忘了", "提醒我".
+- Past time expressions like "今天早上", "下午一点", or "五点半以后回来" are not
+  TODO by themselves.
 - Work lunch / business dinner = EARNING (primary intent is work)
 - Gym / exercise = RELAXING (even if it feels productive)
 - Reading for a work project = EARNING; reading for personal growth = LEARNING
@@ -36,8 +43,8 @@ Disambiguation rules:
 - When an activity serves multiple categories, classify by primary intent.
 - If the user suggests a future change ("maybe we should", "what if", "it might help to"),
   classify as EXPERIMENT.
-- If the user is mainly describing what happened, how it felt, or what they learned,
-  classify as REFLECTION.
+- If the user is mainly describing how it felt, a lesson, reaction, or pattern they
+  noticed, classify as REFLECTION.
 - If something could be both EXPERIMENT and REFLECTION, prefer EXPERIMENT when it suggests
   a future change.
 - If something could be both TODO and EXPERIMENT, prefer TODO when it is specific and
