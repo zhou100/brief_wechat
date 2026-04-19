@@ -1,4 +1,11 @@
 const recorder = wx.getRecorderManager();
+type RecorderStopHandler = Parameters<typeof recorder.onStop>[0];
+type RecorderErrorHandler = Parameters<typeof recorder.onError>[0];
+
+type RecorderWithOff = WechatMiniprogram.RecorderManager & {
+  offStop?: (callback?: RecorderStopHandler) => void;
+  offError?: (callback?: RecorderErrorHandler) => void;
+};
 
 export type RecordingResult = {
   tempFilePath: string;
@@ -24,6 +31,12 @@ export const RECORDING_PRESETS: RecordingOptions[] = [
 
 let startedAt = 0;
 let activeOptions = RECORDING_PRESETS[0];
+let pendingStop:
+  | {
+      resolve: (result: RecordingResult) => void;
+      reject: (error: WechatMiniprogram.GeneralCallbackResult) => void;
+    }
+  | null = null;
 
 export function startRecording(options: RecordingOptions = RECORDING_PRESETS[0]): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -47,15 +60,46 @@ export function startRecording(options: RecordingOptions = RECORDING_PRESETS[0])
 }
 
 export function stopRecording(): Promise<RecordingResult> {
+  if (pendingStop) {
+    return Promise.reject(new Error("Recording is already stopping"));
+  }
+  cleanupStopListeners();
   return new Promise((resolve, reject) => {
-    recorder.onStop((res) => {
-      resolve({
+    const handleStop: RecorderStopHandler = (res) => {
+      if (!pendingStop) return;
+      const current = pendingStop;
+      pendingStop = null;
+      cleanupStopListeners(handleStop, handleError);
+      current.resolve({
         tempFilePath: res.tempFilePath,
         durationMs: res.duration || Date.now() - startedAt,
         options: activeOptions,
       });
-    });
-    recorder.onError((err) => reject(err));
+    };
+    const handleError: RecorderErrorHandler = (err) => {
+      if (!pendingStop) return;
+      const current = pendingStop;
+      pendingStop = null;
+      cleanupStopListeners(handleStop, handleError);
+      current.reject(err);
+    };
+
+    pendingStop = { resolve, reject };
+    recorder.onStop(handleStop);
+    recorder.onError(handleError);
     recorder.stop();
   });
+}
+
+function cleanupStopListeners(
+  stopHandler?: RecorderStopHandler,
+  errorHandler?: RecorderErrorHandler,
+): void {
+  const manager = recorder as RecorderWithOff;
+  try {
+    manager.offStop?.(stopHandler);
+    manager.offError?.(errorHandler);
+  } catch (error) {
+    console.warn("[brief-recorder] listener cleanup skipped", error);
+  }
 }

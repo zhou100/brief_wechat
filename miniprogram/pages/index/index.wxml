@@ -1,20 +1,3 @@
-<view class="page page-shell home-page">
-  <view class="home-main stack">
-    <view class="brand-card stack">
-      <text class="red-stamp">方言小记</text>
-      <text class="title">讲过就清爽</text>
-      <text class="home-line">有事讲两句，我帮你理清爽。</text>
-      <text class="helper-text">普通话、吴语、带口音都可以。</text>
-    </view>
-
-    <view wx:if="{{activeJobId}}" class="panel qing-note stack">
-      <text class="section-title">上次那段还在整理</text>
-      <text class="helper-text">可以先接着看，不用重新讲。</text>
-    </view>
-  </view>
-
-  <view class="bottom-actions">
-    <button class="primary-action" bindtap="startRecord">开始讲</button>
-    <button wx:if="{{activeJobId}}" class="secondary-action" bindtap="resumeJob">继续整理上次那段</button>
-  </view>
+<view class="page page-shell">
+  <text class="helper-text">正在打开今日清爽。</text>
 </view>

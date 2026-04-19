@@ -104,6 +104,11 @@ class ShareCardRequest(BaseModel):
     date: Optional[str] = None
 
 
+class ClassificationPatchRequest(BaseModel):
+    edited_text: Optional[str] = None
+    status: Optional[str] = None
+
+
 class ShareCard(BaseModel):
     share_id: str
     title: str
@@ -337,6 +342,42 @@ async def regenerate_entry(
     return EntryCreateResponse(entry_id=str(entry.id), job_id=str(job.id))
 
 
+@router.post("/items/{item_id}")
+async def update_classification_item(
+    item_id: str,
+    body: ClassificationPatchRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if body.edited_text is None and body.status is None:
+        raise HTTPException(status_code=400, detail="edited_text or status is required")
+    if body.status is not None and body.status not in {"open", "done", "dismissed"}:
+        raise HTTPException(status_code=400, detail="Invalid status")
+
+    classification, _entry = await _get_owned_classification(db, item_id, current_user.id)
+    if body.edited_text is not None:
+        classification.edited_text = body.edited_text.strip() or None
+        classification.user_override = True
+    if body.status is not None:
+        classification.status = body.status
+        classification.user_override = True
+
+    await db.commit()
+    return {"ok": True}
+
+
+@router.delete("/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_classification_item(
+    item_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    classification, _entry = await _get_owned_classification(db, item_id, current_user.id)
+    classification.status = "dismissed"
+    classification.user_override = True
+    await db.commit()
+
+
 @router.post("/share/cards", response_model=ShareCardResponse)
 async def create_share_card(
     body: ShareCardRequest,
@@ -434,6 +475,23 @@ async def _get_owned_entry(db: AsyncSession, entry_id: str, user_id: int) -> Ent
     return entry
 
 
+async def _get_owned_classification(
+    db: AsyncSession,
+    item_id: str,
+    user_id: int,
+) -> tuple[EntryClassification, Entry]:
+    item_uuid = _parse_uuid(item_id, "item_id")
+    result = await db.execute(
+        select(EntryClassification, Entry)
+        .join(Entry, EntryClassification.entry_id == Entry.id)
+        .where(EntryClassification.id == item_uuid, Entry.user_id == user_id)
+    )
+    row = result.one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return row
+
+
 def _entry_result(entry: Entry) -> EntryResultResponse:
     date = entry.local_date.isoformat() if entry.local_date else None
     return _daily_result([entry], date)
@@ -455,7 +513,7 @@ def _daily_result(entries: List[Entry], date: Optional[str]) -> EntryResultRespo
         classification
         for entry in entries
         for classification in sorted(entry.classifications, key=lambda item: item.display_order)
-        if classification.display_text
+        if classification.display_text and classification.status != "dismissed"
     ]
     lines = [c.display_text for c in all_classifications if c.display_text]
     transcript_lines = [entry.transcript for entry in entries if entry.transcript]
@@ -496,7 +554,7 @@ def _entry_item(entry: Entry) -> Dict[str, Any]:
             "estimated_minutes": classification.estimated_minutes,
         }
         for classification in sorted(entry.classifications, key=lambda item: item.display_order)
-        if classification.display_text
+        if classification.display_text and classification.status != "dismissed"
     ]
     return {
         "id": str(entry.id),

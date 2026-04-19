@@ -91,16 +91,17 @@ Page({
 
     try {
       const token = await app.ensureLogin();
+      const localDate = todayLocalDate();
       const entry = await submitRecordedEntry({
         token,
         filePath,
         durationMs,
-        localDate: todayLocalDate(),
+        localDate,
         recorderOptions: uploadOptions,
       });
       wx.setStorageSync("brief_active_job_id", entry.job_id);
       wx.hideLoading();
-      wx.redirectTo({ url: `/pages/job/job?job_id=${entry.job_id}` });
+      wx.redirectTo({ url: `/pages/day/day?date=${localDate}&entry_id=${entry.entry_id}` });
     } catch (error) {
       wx.hideLoading();
       const message = userFacingError(error, "这段没传上去，请再试一次。");

@@ -2,6 +2,55 @@
   gap: 32rpx;
 }
 
+.brand-mini {
+  border: 2rpx solid #e7d7d2;
+  border-radius: 8rpx;
+  background: linear-gradient(180deg, #ffffff 0%, #fff6f3 100%);
+  padding: 28rpx;
+  box-sizing: border-box;
+}
+
+.brand-title {
+  color: #191514;
+  font-size: 42rpx;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.brand-line {
+  color: #191514;
+  font-size: 32rpx;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.talk-panel {
+  border: 2rpx solid #f3b4b8;
+  border-radius: 8rpx;
+  background: #fff5f3;
+  padding: 32rpx;
+  box-sizing: border-box;
+}
+
+.talk-panel.talking {
+  border-color: #e11d2e;
+  background: #fff1f2;
+}
+
+.talk-time {
+  color: #161616;
+  font-size: 76rpx;
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.error-text {
+  color: #b91c1c;
+  font-size: 30rpx;
+  line-height: 1.6;
+}
+
 .category-card {
   border-left-width: 10rpx;
 }
@@ -37,14 +86,75 @@
   line-height: 40rpx;
   text-align: center;
   flex-shrink: 0;
-  margin-top: 4rpx;
+  margin-top: 8rpx;
+}
+
+.line-main {
+  flex: 1;
+  min-width: 0;
 }
 
 .list-line {
-  flex: 1;
   color: #2a2a2a;
   font-size: 34rpx;
   line-height: 1.65;
+}
+
+.line-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+
+.small-primary,
+.small-secondary,
+.small-danger {
+  flex: 1;
+  min-height: 72rpx;
+  border-radius: 8rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+  line-height: 72rpx;
+}
+
+.small-primary {
+  background: #e11d2e;
+  color: #ffffff;
+}
+
+.small-secondary {
+  border: 2rpx solid #e7d7d2;
+  background: #ffffff;
+  color: #b91c1c;
+}
+
+.small-danger {
+  border: 2rpx solid #fecaca;
+  background: #fff1f2;
+  color: #b91c1c;
+}
+
+.small-primary::after,
+.small-secondary::after,
+.small-danger::after {
+  border: 0;
+}
+
+.edit-box {
+  width: 100%;
+  min-height: 120rpx;
+  border: 2rpx solid #f3b4b8;
+  border-radius: 8rpx;
+  background: #fffafa;
+  color: #191514;
+  font-size: 34rpx;
+  line-height: 1.6;
+  padding: 18rpx;
+  box-sizing: border-box;
+}
+
+.share-area {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .category-todo {

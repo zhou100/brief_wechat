@@ -1,14 +1,25 @@
 <view class="page page-shell stack result-page">
   <view class="stack">
-    <text class="red-stamp">已整理</text>
+    <text class="red-stamp">{{processing ? '整理中' : '今日'}}</text>
     <text class="title">今日清爽</text>
     <text class="muted">今天讲了 {{entryCount}} 段，整理出 {{contentCount}} 条内容。</text>
   </view>
 
-  <view class="panel qing-note stack">
-    <text class="section-title">今天大概是这些</text>
-    <text wx:if="{{summary}}">{{summary}}</text>
-    <text wx:else class="muted">今天还没有整理内容。</text>
+  <view wx:if="{{entryCount == 0 && !recording && !starting && !stopping && !uploading && !processing}}" class="brand-mini stack">
+    <text class="red-stamp">方言小记</text>
+    <text class="brand-title">讲过就清爽</text>
+    <text class="brand-line">有事讲两句，我帮你理清爽。</text>
+    <text class="helper-text">普通话、吴语、带口音都可以。</text>
+  </view>
+
+  <view class="talk-panel stack {{recording ? 'talking' : ''}}">
+    <text class="section-title">{{recording ? '正在听你讲' : '想到什么就讲两句'}}</text>
+    <text class="talk-time">{{elapsedLabel}}</text>
+    <button wx:if="{{!starting && !recording && !stopping && !uploading && !processing}}" class="primary-action" bindtap="startRecord">开始讲</button>
+    <button wx:elif="{{recording}}" class="primary-action" bindtap="stopRecord">讲好了，帮我整理</button>
+    <button wx:else class="primary-action" loading="true" disabled="true">正在整理</button>
+    <text wx:if="{{statusText}}" class="helper-text">{{statusText}}</text>
+    <text wx:if="{{errorText}}" class="error-text">{{errorText}}</text>
   </view>
 
   <view wx:if="{{categoryGroups.length > 0}}" class="stack">
@@ -22,7 +33,29 @@
         <block wx:for="{{group.items}}" wx:key="id" wx:for-item="thing" wx:for-index="thingIndex">
           <view class="category-line">
             <text class="list-index">{{thingIndex + 1}}</text>
-            <text class="list-line">{{thing.text}}</text>
+            <view class="line-main">
+              <block wx:if="{{editingItemId == thing.id}}">
+                <textarea
+                  class="edit-box"
+                  value="{{editDraft}}"
+                  auto-focus="true"
+                  auto-height="true"
+                  maxlength="300"
+                  bindinput="updateEditDraft"
+                />
+                <view class="line-actions">
+                  <button class="small-primary" data-item-id="{{thing.id}}" bindtap="saveEdit">存好</button>
+                  <button class="small-secondary" bindtap="cancelEdit">算了</button>
+                </view>
+              </block>
+              <block wx:else>
+                <text class="list-line">{{thing.text}}</text>
+                <view wx:if="{{thing.id}}" class="line-actions">
+                  <button class="small-secondary" data-item-id="{{thing.id}}" data-text="{{thing.text}}" bindtap="startEdit">改一下</button>
+                  <button class="small-danger" data-item-id="{{thing.id}}" bindtap="deleteThing">删除</button>
+                </view>
+              </block>
+            </view>
           </view>
         </block>
       </view>
@@ -31,20 +64,10 @@
 
   <view wx:else class="panel stack">
     <text class="section-title">今天还空着</text>
-    <text class="muted">讲一段以后，这里会按“要办的事、可以试试、想法感受、家里事情”等分类放好。</text>
+    <text class="muted">讲一段以后，这里会按“做过的事、要办的事、买汰烧、学到的”等分类放好。</text>
   </view>
 
-  <view wx:if="{{entries.length > 1}}" class="panel stack">
-    <text class="section-title">今天的几段话</text>
-    <block wx:for="{{entries}}" wx:key="id">
-      <text class="muted">{{index + 1}}. {{item.created_at}}</text>
-    </block>
-  </view>
-
-  <view class="bottom-actions">
-    <button wx:if="{{contentCount > 0}}" class="primary-action" open-type="share" bindtap="prepareShare">发给家人</button>
-    <button class="secondary-action" bindtap="recordMore">再讲一段</button>
-    <button wx:if="{{entryId}}" class="secondary-action" bindtap="regenerate">重新整理刚才这段</button>
-    <button wx:if="{{entryId}}" class="danger-action" bindtap="deleteCurrent">删除刚才这段</button>
+  <view wx:if="{{contentCount > 0}}" class="share-area">
+    <button class="primary-action" open-type="share" bindtap="prepareShare">发给家人</button>
   </view>
 </view>

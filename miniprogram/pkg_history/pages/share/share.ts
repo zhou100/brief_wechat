@@ -27,6 +27,6 @@ Page({
   },
 
   startRecord() {
-    wx.reLaunch({ url: "/pages/index/index" });
+    wx.reLaunch({ url: "/pages/day/day" });
   },
 });

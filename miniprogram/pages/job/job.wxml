@@ -12,12 +12,12 @@
   </view>
 
   <view wx:if="{{errorMessage}}" class="panel stack">
-    <text class="section-title">可以再讲一遍</text>
+    <text class="section-title">回到今天再讲</text>
     <text>{{errorMessage}}</text>
   </view>
 
   <view class="bottom-actions">
-    <button wx:if="{{failed}}" class="primary-action" bindtap="goRecord">再讲一遍</button>
-    <button class="secondary-action" bindtap="goHome">先离开，稍后继续</button>
+    <button wx:if="{{failed}}" class="primary-action" bindtap="goRecord">回今日清爽</button>
+    <button class="secondary-action" bindtap="goHome">回到今天</button>
   </view>
 </view>
