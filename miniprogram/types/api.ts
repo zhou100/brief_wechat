@@ -30,6 +30,7 @@ export type JobStatus = "queued" | "processing" | "done" | "failed";
 export type JobResponse = {
   job_id: string;
   entry_id?: string;
+  local_date?: string;
   status: JobStatus;
   progress?: number;
   step?: string;
@@ -43,18 +44,36 @@ export type JobResponse = {
 export type CategoryItem = {
   id?: string;
   text?: string;
-  category: "EARNING" | "LEARNING" | "RELAXING" | "FAMILY" | "TODO" | "EXPERIMENT" | "REFLECTION" | "TIME_RECORD";
+  category:
+    | "EARNING"
+    | "LEARNING"
+    | "MAITAISHAO"
+    | "RELAXING"
+    | "FAMILY"
+    | "TODO"
+    | "EXPERIMENT"
+    | "REFLECTION"
+    | "TIME_RECORD";
   estimated_minutes?: number;
+};
+
+export type CategoryGroup = {
+  category: CategoryItem["category"];
+  label: string;
+  items: CategoryItem[];
 };
 
 export type DailyBrief = {
   entry_id: string;
   result_id?: string;
   cloud_file_id?: string;
+  date?: string;
   created_at: string;
   summary: string;
   key_points: string[];
   open_loops: string[];
+  entries?: HistoryItem[];
+  category_groups?: CategoryGroup[];
   share_card?: ShareCard;
 };
 

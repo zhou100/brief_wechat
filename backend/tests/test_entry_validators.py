@@ -5,7 +5,17 @@ from pydantic import ValidationError
 
 def test_valid_category_accepted():
     from app.routes.v1.entries import CategoryItem
-    for cat in ("EARNING", "LEARNING", "RELAXING", "FAMILY", "TODO", "EXPERIMENT", "REFLECTION", "TIME_RECORD"):
+    for cat in (
+        "EARNING",
+        "LEARNING",
+        "MAITAISHAO",
+        "RELAXING",
+        "FAMILY",
+        "TODO",
+        "EXPERIMENT",
+        "REFLECTION",
+        "TIME_RECORD",
+    ):
         item = CategoryItem(text="test", category=cat)
         assert item.category == cat
 

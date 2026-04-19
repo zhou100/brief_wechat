@@ -28,10 +28,10 @@
     }
   ],
   "window": {
-    "navigationBarTitleText": "Brief",
-    "navigationBarBackgroundColor": "#0f172a",
+    "navigationBarTitleText": "讲过就清爽",
+    "navigationBarBackgroundColor": "#E11D2E",
     "navigationBarTextStyle": "white",
-    "backgroundColor": "#f6f8fb"
+    "backgroundColor": "#FFF8F5"
   },
   "requiredPrivateInfos": [],
   "sitemapLocation": "sitemap.json"

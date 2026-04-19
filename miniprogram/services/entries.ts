@@ -127,11 +127,14 @@ export function regenerateEntry(token: string, entryId: string): Promise<EntryCr
   return request<EntryCreateResponse>(`/miniapp/entries/${entryId}/regenerate`, { method: "POST", token });
 }
 
-export function createShareCard(token: string, entryId: string): Promise<ShareCardResponse> {
-  return request<ShareCardResponse, { entry_id: string }>("/miniapp/share/cards", {
+export function createShareCard(token: string, params: { entryId?: string; date?: string }): Promise<ShareCardResponse> {
+  return request<ShareCardResponse, { entry_id?: string; date?: string }>("/miniapp/share/cards", {
     method: "POST",
     token,
-    data: { entry_id: entryId },
+    data: {
+      entry_id: params.entryId,
+      date: params.date,
+    },
   });
 }
 

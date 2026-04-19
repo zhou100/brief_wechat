@@ -1,33 +1,50 @@
-<view class="page stack">
+<view class="page page-shell stack result-page">
   <view class="stack">
-    <text class="title">整理好了</text>
-    <text class="muted">{{createdAt}}</text>
+    <text class="red-stamp">已整理</text>
+    <text class="title">今日清爽</text>
+    <text class="muted">今天讲了 {{entryCount}} 段，整理出 {{contentCount}} 条内容。</text>
   </view>
 
-  <view class="panel stack">
-    <text class="section-title">Summary</text>
+  <view class="panel qing-note stack">
+    <text class="section-title">今天大概是这些</text>
     <text wx:if="{{summary}}">{{summary}}</text>
-    <text wx:else class="muted">还没有结果。</text>
+    <text wx:else class="muted">今天还没有整理内容。</text>
   </view>
 
-  <view class="panel stack">
-    <text class="section-title">Key points</text>
-    <block wx:for="{{keyPoints}}" wx:key="*this">
-      <text class="list-line">- {{item}}</text>
+  <view wx:if="{{categoryGroups.length > 0}}" class="stack">
+    <block wx:for="{{categoryGroups}}" wx:key="category" wx:for-item="group">
+      <view class="panel stack category-card {{group.accentClass}}">
+        <view class="category-heading">
+          <text class="section-title">{{group.label}}</text>
+          <text class="category-count">{{group.items.length}} 条</text>
+        </view>
+        <text wx:if="{{group.helper}}" class="muted">{{group.helper}}</text>
+        <block wx:for="{{group.items}}" wx:key="id" wx:for-item="thing" wx:for-index="thingIndex">
+          <view class="category-line">
+            <text class="list-index">{{thingIndex + 1}}</text>
+            <text class="list-line">{{thing.text}}</text>
+          </view>
+        </block>
+      </view>
     </block>
-    <text wx:if="{{keyPoints.length === 0}}" class="muted">暂无关键点。</text>
   </view>
 
-  <view class="panel stack">
-    <text class="section-title">Open loops</text>
-    <block wx:for="{{openLoops}}" wx:key="*this">
-      <text class="list-line">- {{item}}</text>
+  <view wx:else class="panel stack">
+    <text class="section-title">今天还空着</text>
+    <text class="muted">讲一段以后，这里会按“要办的事、可以试试、想法感受、家里事情”等分类放好。</text>
+  </view>
+
+  <view wx:if="{{entries.length > 1}}" class="panel stack">
+    <text class="section-title">今天的几段话</text>
+    <block wx:for="{{entries}}" wx:key="id">
+      <text class="muted">{{index + 1}}. {{item.created_at}}</text>
     </block>
-    <text wx:if="{{openLoops.length === 0}}" class="muted">没有未闭环事项。</text>
   </view>
 
-  <button class="button" open-type="share" bindtap="prepareShare">分享摘要卡片</button>
-  <button class="button secondary" bindtap="regenerate">重新生成</button>
-  <button class="button danger" bindtap="deleteCurrent">删除这条内容</button>
-  <button class="button secondary" bindtap="recordMore">再录一条</button>
+  <view class="bottom-actions">
+    <button wx:if="{{contentCount > 0}}" class="primary-action" open-type="share" bindtap="prepareShare">发给家人</button>
+    <button class="secondary-action" bindtap="recordMore">再讲一段</button>
+    <button wx:if="{{entryId}}" class="secondary-action" bindtap="regenerate">重新整理刚才这段</button>
+    <button wx:if="{{entryId}}" class="danger-action" bindtap="deleteCurrent">删除刚才这段</button>
+  </view>
 </view>

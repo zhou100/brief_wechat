@@ -1,8 +1,27 @@
-.hero {
-  padding-top: 48rpx;
+.home-page {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 48rpx;
 }
 
-.section-title {
-  font-size: 30rpx;
+.home-main {
+  padding-top: 40rpx;
+}
+
+.brand-card {
+  min-height: 520rpx;
+  justify-content: center;
+  border: 2rpx solid #e7d7d2;
+  border-radius: 24rpx;
+  background: linear-gradient(180deg, #ffffff 0%, #fff6f3 100%);
+  padding: 44rpx 36rpx;
+  box-sizing: border-box;
+}
+
+.home-line {
+  color: #191514;
+  font-size: 42rpx;
   font-weight: 700;
+  line-height: 1.45;
 }

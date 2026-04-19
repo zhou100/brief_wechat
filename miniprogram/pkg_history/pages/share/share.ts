@@ -22,7 +22,7 @@ Page({
         openLoopCount: result.open_loop_count,
       });
     } catch (error) {
-      wx.showToast({ title: "摘要不可用", icon: "none" });
+      wx.showToast({ title: "暂时打不开", icon: "none" });
     }
   },
 

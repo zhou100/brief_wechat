@@ -43,7 +43,7 @@ function route<TResponse, TBody>(
   if (path === "/miniapp/auth/login") {
     return {
       token: "mock-token",
-      user: { id: "mock-user", display_name: "Brief Tester" },
+      user: { id: "mock-user", display_name: "清爽测试用户" },
     } satisfies LoginResponse as TResponse;
   }
 
@@ -68,11 +68,12 @@ function route<TResponse, TBody>(
     return {
       job_id: "mock-job-1",
       entry_id: lastEntryId,
+      local_date: new Date().toISOString().slice(0, 10),
       status: pollCount >= 8 ? "done" : "processing",
       progress: pollCount >= 8 ? 100 : Math.min(90, 20 + pollCount * 9),
       step: pollCount >= 8 ? "整理完成" : "正在整理你的内容",
       result_preview: {
-        summary: "今天的重点已经整理成一张 Brief。",
+        summary: "今天的重点已经整理清爽了。",
       },
     } satisfies JobResponse as TResponse;
   }
@@ -93,8 +94,8 @@ function route<TResponse, TBody>(
     return {
       card: {
         share_id: "mock-share-1",
-        title: "我的 Brief 摘要",
-        summary: "今天的重点已经整理成一张 Brief。",
+        title: "今天已经整理清爽了",
+        summary: "今天的重点已经整理清爽了。",
         open_loop_count: 2,
       },
     } satisfies ShareCardResponse as TResponse;
@@ -103,7 +104,7 @@ function route<TResponse, TBody>(
   if (path.startsWith("/miniapp/share/cards/")) {
     return {
       share_id: "mock-share-1",
-      summary: "今天的重点已经整理成一张 Brief。",
+      summary: "今天的重点已经整理清爽了。",
       open_loop_count: 2,
       created_at: new Date().toISOString(),
     } satisfies SharedBrief as TResponse;
@@ -122,20 +123,68 @@ function route<TResponse, TBody>(
 }
 
 function mockBrief(): DailyBrief {
+  const createdAt = new Date().toISOString();
   return {
     entry_id: lastEntryId,
     result_id: "mock-result-1",
     cloud_file_id: "cloud://mock-env/mock-bucket/raw_audio/mock/latest.mp3",
-    created_at: new Date().toISOString(),
-    summary: "今天的重点是把微信小程序的最小录音闭环跑起来。",
+    date: new Date().toISOString().slice(0, 10),
+    created_at: createdAt,
+    summary: "今天主要讲了这些事。",
     key_points: [
-      "小程序已经可以进入录音、上传、处理和结果页面。",
-      "后端需要补齐 /miniapp/* BFF 接口。",
-      "分享只暴露摘要卡片，不暴露完整内容。",
+      "微信小程序录音、上传、处理和结果页面已经跑通。",
+      "默认录音格式固定为 MP3 16k。",
+      "结果页应该按一天来整理，不只看单段录音。",
+      "早上买菜、汰菜、烧了两个菜。",
     ],
     open_loops: [
-      "接入真实微信登录 code 换 token。",
-      "把上传入口接到后端存储。",
+      "把结果页改成今日清爽。",
+      "把分类逻辑展示出来。",
+    ],
+    entries: [
+      {
+        id: lastEntryId,
+        transcript: "今天小程序跑通了，但是结果页太像单条摘要。",
+        local_date: new Date().toISOString().slice(0, 10),
+        created_at: createdAt,
+        duration_seconds: 18,
+        categories: [
+          { text: "微信小程序录音上传处理结果页面已经跑通", category: "EARNING" },
+          { text: "结果页太像单条摘要，需要改成今日整理", category: "REFLECTION" },
+          { text: "早上买菜、汰菜、烧了两个菜", category: "MAITAISHAO" },
+        ],
+      },
+    ],
+    category_groups: [
+      {
+        category: "TODO",
+        label: "要办的事",
+        items: [
+          { text: "把结果页改成今日清爽", category: "TODO" },
+          { text: "把分类逻辑展示出来", category: "TODO" },
+        ],
+      },
+      {
+        category: "REFLECTION",
+        label: "想法提醒",
+        items: [
+          { text: "单条录音摘要太单薄，应该按每天累积", category: "REFLECTION" },
+        ],
+      },
+      {
+        category: "EARNING",
+        label: "做过的事",
+        items: [
+          { text: "微信小程序录音、上传、处理和结果页面已经跑通", category: "EARNING" },
+        ],
+      },
+      {
+        category: "MAITAISHAO",
+        label: "买汰烧",
+        items: [
+          { text: "早上买菜、汰菜、烧了两个菜", category: "MAITAISHAO" },
+        ],
+      },
     ],
   };
 }

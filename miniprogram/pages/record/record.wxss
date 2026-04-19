@@ -1,28 +1,44 @@
+.record-page {
+  gap: 32rpx;
+}
+
 .record-face {
-  height: 420rpx;
-  border: 1rpx solid #dbe3ee;
-  border-radius: 8rpx;
+  min-height: 520rpx;
+  border: 2rpx solid #e7d7d2;
+  border-radius: 24rpx;
   background: #ffffff;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16rpx;
+  gap: 24rpx;
+  padding: 40rpx 28rpx;
+  box-sizing: border-box;
 }
 
 .record-face.active {
-  border-color: #ef4444;
+  border-color: #e11d2e;
+  background: #fff6f3;
 }
 
 .record-time {
-  font-size: 72rpx;
+  color: #161616;
+  font-size: 96rpx;
   font-weight: 700;
+  line-height: 1.1;
+}
+
+.record-status {
+  color: #5f6673;
+  font-size: 36rpx;
+  font-weight: 600;
+  line-height: 1.5;
 }
 
 .preset-picker {
-  border: 1rpx solid #cbd5e1;
-  border-radius: 8rpx;
+  border: 2rpx solid #e7d7d2;
+  border-radius: 16rpx;
   padding: 20rpx 24rpx;
-  color: #0f172a;
-  background: #f8fafc;
+  color: #191514;
+  background: #ffffff;
 }

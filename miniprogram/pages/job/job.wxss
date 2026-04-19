@@ -1,4 +1,8 @@
-.section-title {
-  font-size: 30rpx;
-  font-weight: 700;
+.job-page {
+  justify-content: space-between;
+}
+
+.job-card {
+  min-height: 360rpx;
+  justify-content: center;
 }

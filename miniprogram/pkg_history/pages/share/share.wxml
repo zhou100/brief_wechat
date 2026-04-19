@@ -1,10 +1,11 @@
-<view class="page stack">
+<view class="page page-shell stack">
   <view class="panel stack">
-    <text class="title">一张 Brief 摘要</text>
+    <text class="red-stamp">家人发来</text>
+    <text class="title">今天已经整理清爽了</text>
     <text wx:if="{{summary}}">{{summary}}</text>
-    <text wx:else class="muted">这张摘要暂不可用。</text>
-    <text class="muted">Open loops: {{openLoopCount}}</text>
+    <text wx:else class="muted">这段整理暂时打不开。</text>
+    <text class="muted">还没办完：{{openLoopCount}} 件</text>
   </view>
 
-  <button class="button" bindtap="startRecord">我也录一段</button>
+  <button class="primary-action" bindtap="startRecord">我也讲两句</button>
 </view>

@@ -77,6 +77,7 @@ class JobResultPreview(BaseModel):
 class JobResponse(BaseModel):
     job_id: str
     entry_id: Optional[str] = None
+    local_date: Optional[str] = None
     status: str
     progress: int
     step: Optional[str] = None
@@ -89,14 +90,18 @@ class EntryResultResponse(BaseModel):
     entry_id: str
     result_id: Optional[str] = None
     cloud_file_id: Optional[str] = None
+    date: Optional[str] = None
     created_at: str
     summary: str
     key_points: List[str]
     open_loops: List[str]
+    entries: List[Dict[str, Any]] = Field(default_factory=list)
+    category_groups: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class ShareCardRequest(BaseModel):
-    entry_id: str
+    entry_id: Optional[str] = None
+    date: Optional[str] = None
 
 
 class ShareCard(BaseModel):
@@ -143,7 +148,7 @@ async def miniapp_login(body: MiniappLoginRequest, db: AsyncSession = Depends(ge
     token = create_access_token({"sub": str(user.id), "provider": "wechat"})
     return MiniappLoginResponse(
         token=token,
-        user=MiniappUser(id=str(user.id), display_name="Brief"),
+        user=MiniappUser(id=str(user.id), display_name="讲过就清爽"),
     )
 
 
@@ -264,6 +269,7 @@ async def get_job(
     return JobResponse(
         job_id=str(job.id),
         entry_id=str(job.entry_id),
+        local_date=job.entry.local_date.isoformat() if job.entry and job.entry.local_date else None,
         status=_miniapp_job_status(job.status),
         progress=_job_progress(job),
         step=job.step,
@@ -281,6 +287,27 @@ async def get_entry_result(
 ):
     entry = await _get_owned_entry(db, entry_id, current_user.id)
     return _entry_result(entry)
+
+
+@router.get("/daily/{date}", response_model=EntryResultResponse)
+async def get_daily_result(
+    date: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        local_date = datetime.strptime(date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format")
+
+    result = await db.execute(
+        select(Entry)
+        .where(Entry.user_id == current_user.id, Entry.local_date == local_date)
+        .options(selectinload(Entry.classifications), selectinload(Entry.jobs))
+        .order_by(Entry.created_at.asc())
+    )
+    entries = _completed_entries(result.scalars().unique().all())
+    return _daily_result(entries, date)
 
 
 @router.delete("/entries/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -316,11 +343,30 @@ async def create_share_card(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    entry = await _get_owned_entry(db, body.entry_id, current_user.id)
-    result = _entry_result(entry)
+    if body.date:
+        try:
+            local_date = datetime.strptime(body.date, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format")
+        daily_result = await db.execute(
+            select(Entry)
+            .where(Entry.user_id == current_user.id, Entry.local_date == local_date)
+            .options(selectinload(Entry.classifications), selectinload(Entry.jobs))
+            .order_by(Entry.created_at.asc())
+        )
+        result = _daily_result(_completed_entries(daily_result.scalars().unique().all()), body.date)
+        if not result.entries:
+            raise HTTPException(status_code=404, detail="No shareable entries for this date")
+    elif body.entry_id:
+        entry = await _get_owned_entry(db, body.entry_id, current_user.id)
+        result = _entry_result(entry)
+    else:
+        raise HTTPException(status_code=400, detail="date or entry_id is required")
+
     share_id = jwt.encode(
         {
             "entry_id": result.entry_id,
+            "date": result.date,
             "summary": result.summary,
             "open_loop_count": len(result.open_loops),
             "created_at": result.created_at,
@@ -331,7 +377,7 @@ async def create_share_card(
     return ShareCardResponse(
         card=ShareCard(
             share_id=share_id,
-            title="我的 Brief 摘要",
+            title="今天已经整理清爽了",
             summary=result.summary,
             open_loop_count=len(result.open_loops),
         )
@@ -389,32 +435,131 @@ async def _get_owned_entry(db: AsyncSession, entry_id: str, user_id: int) -> Ent
 
 
 def _entry_result(entry: Entry) -> EntryResultResponse:
-    lines = [c.display_text for c in entry.classifications if c.display_text]
-    transcript = entry.transcript or ""
-    summary_source = transcript or "Brief 已整理这段语音。"
-    key_points = lines[:5]
-    if not key_points and transcript:
-        key_points = [_one_sentence(transcript)]
+    date = entry.local_date.isoformat() if entry.local_date else None
+    return _daily_result([entry], date)
+
+
+def _completed_entries(entries: List[Entry]) -> List[Entry]:
+    return [
+        entry
+        for entry in entries
+        if (entry.transcript or entry.classifications)
+        and _latest_job_status(entry) == JobStatus.DONE.value
+    ]
+
+
+def _daily_result(entries: List[Entry], date: Optional[str]) -> EntryResultResponse:
+    entries = sorted(entries, key=lambda item: item.created_at)
+    primary_entry = entries[-1] if entries else None
+    all_classifications = [
+        classification
+        for entry in entries
+        for classification in sorted(entry.classifications, key=lambda item: item.display_order)
+        if classification.display_text
+    ]
+    lines = [c.display_text for c in all_classifications if c.display_text]
+    transcript_lines = [entry.transcript for entry in entries if entry.transcript]
+    transcript = " ".join(transcript_lines)
+    summary = _daily_summary(entries, lines)
+    category_groups = _category_groups(all_classifications)
     open_loops = [
         c.display_text
-        for c in entry.classifications
-        if c.display_text and c.category in {"TODO", "EXPERIMENT", "REFLECTION"}
-    ][:5]
+        for c in all_classifications
+        if c.display_text and c.category in {"TODO", "EXPERIMENT"}
+    ][:8]
+    entry_items = [_entry_item(entry) for entry in entries]
+
     return EntryResultResponse(
-        entry_id=str(entry.id),
-        result_id=str(entry.id),
-        cloud_file_id=entry.raw_audio_key if entry.raw_audio_key and entry.raw_audio_key.startswith("cloud://") else None,
-        created_at=entry.created_at.isoformat(),
-        summary=_one_sentence(summary_source),
-        key_points=key_points[:5],
+        entry_id=str(primary_entry.id) if primary_entry else "",
+        result_id=str(primary_entry.id) if primary_entry else None,
+        cloud_file_id=(
+            primary_entry.raw_audio_key
+            if primary_entry and primary_entry.raw_audio_key and primary_entry.raw_audio_key.startswith("cloud://")
+            else None
+        ),
+        date=date,
+        created_at=primary_entry.created_at.isoformat() if primary_entry else datetime.now(timezone.utc).isoformat(),
+        summary=summary if summary else _one_sentence(transcript),
+        key_points=lines[:8],
         open_loops=open_loops,
+        entries=entry_items,
+        category_groups=category_groups,
     )
+
+
+def _entry_item(entry: Entry) -> Dict[str, Any]:
+    categories = [
+        {
+            "id": str(classification.id),
+            "text": classification.display_text,
+            "category": classification.category,
+            "estimated_minutes": classification.estimated_minutes,
+        }
+        for classification in sorted(entry.classifications, key=lambda item: item.display_order)
+        if classification.display_text
+    ]
+    return {
+        "id": str(entry.id),
+        "transcript": entry.transcript,
+        "local_date": entry.local_date.isoformat() if entry.local_date else None,
+        "created_at": entry.created_at.isoformat(),
+        "duration_seconds": entry.duration_seconds,
+        "categories": categories,
+    }
+
+
+def _daily_summary(entries: List[Entry], lines: List[str]) -> str:
+    if not entries:
+        return "今天还没有记录。"
+    if len(entries) == 1 and len(lines) <= 1:
+        return lines[0] if lines else _one_sentence(entries[0].transcript or "这段已经整理清爽了。")
+    return "今天主要讲了这些事。"
+
+
+def _category_groups(classifications: List[EntryClassification]) -> List[Dict[str, Any]]:
+    category_order = ["TODO", "MAITAISHAO", "EXPERIMENT", "REFLECTION", "EARNING", "LEARNING", "FAMILY", "RELAXING"]
+    grouped: Dict[str, List[Dict[str, Any]]] = {category: [] for category in category_order}
+    for classification in classifications:
+        category = classification.category if classification.category in grouped else "REFLECTION"
+        grouped[category].append(
+            {
+                "id": str(classification.id),
+                "text": classification.display_text,
+                "category": category,
+                "estimated_minutes": classification.estimated_minutes,
+            }
+        )
+
+    return [
+        {
+            "category": category,
+            "label": _category_label(category),
+            "items": items,
+        }
+        for category in category_order
+        if (items := grouped.get(category))
+    ]
+
+
+def _category_label(category: str) -> str:
+    labels = {
+        "TODO": "要办的事",
+        "MAITAISHAO": "买汰烧",
+        "EXPERIMENT": "可以试试",
+        "REFLECTION": "想法提醒",
+        "EARNING": "做过的事",
+        "LEARNING": "学到的",
+        "FAMILY": "家里事情",
+        "RELAXING": "休息活动",
+        "TIME_RECORD": "时间记录",
+    }
+    return labels.get(category, category)
 
 
 def _one_sentence(text: str) -> str:
     compact = " ".join((text or "").split())
     if not compact:
-        return "Brief 已整理这段语音。"
+        return "这段已经整理清爽了。"
     for sep in ["。", "！", "？", ".", "!", "?"]:
         if sep in compact:
             return compact.split(sep)[0][:120] + sep
@@ -422,7 +567,7 @@ def _one_sentence(text: str) -> str:
 
 
 def _miniapp_job_status(status_value) -> str:
-    value = status_value.value if hasattr(status_value, "value") else status_value
+    value = _job_status_value(status_value)
     if value == JobStatus.PENDING.value:
         return "queued"
     if value == JobStatus.PROCESSING.value:
@@ -433,7 +578,7 @@ def _miniapp_job_status(status_value) -> str:
 
 
 def _job_progress(job: Job) -> int:
-    status_value = job.status.value if hasattr(job.status, "value") else job.status
+    status_value = _job_status_value(job.status)
     if status_value == JobStatus.DONE.value:
         return 100
     if status_value == JobStatus.FAILED.value:
@@ -445,6 +590,17 @@ def _job_progress(job: Job) -> int:
             return 75
         return 35
     return 15
+
+
+def _job_status_value(status_value) -> str:
+    return status_value.value if hasattr(status_value, "value") else status_value
+
+
+def _latest_job_status(entry: Entry) -> Optional[str]:
+    if not entry.jobs:
+        return None
+    latest = max(entry.jobs, key=lambda job: job.created_at or datetime.min)
+    return _job_status_value(latest.status)
 
 
 def _job_error_code(job: Job) -> Optional[str]:

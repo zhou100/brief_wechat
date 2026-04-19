@@ -1,20 +1,23 @@
-<view class="page stack">
-  <view class="panel stack">
-    <text class="title">正在整理你的内容</text>
+<view class="page page-shell stack job-page">
+  <view class="panel paper-panel stack job-card">
+    <text class="red-stamp">{{failed ? '没整理好' : '正在整理'}}</text>
+    <text class="title">{{failed ? '这段没听清' : '正在帮你理清爽'}}</text>
     <text class="muted">{{stepText}}</text>
-    <progress percent="{{progress}}" stroke-width="6" active />
+    <progress percent="{{progress}}" stroke-width="6" active activeColor="#E11D2E" backgroundColor="#F7DDD8" />
   </view>
 
   <view wx:if="{{preview}}" class="panel stack">
-    <text class="section-title">结果预览</text>
+    <text class="section-title">先看到一句</text>
     <text>{{preview}}</text>
   </view>
 
   <view wx:if="{{errorMessage}}" class="panel stack">
-    <text class="section-title">失败原因</text>
+    <text class="section-title">可以再讲一遍</text>
     <text>{{errorMessage}}</text>
   </view>
 
-  <button wx:if="{{failed}}" class="button" bindtap="goRecord">重新录音</button>
-  <button class="button secondary" bindtap="goHome">先离开，稍后继续</button>
+  <view class="bottom-actions">
+    <button wx:if="{{failed}}" class="primary-action" bindtap="goRecord">再讲一遍</button>
+    <button class="secondary-action" bindtap="goHome">先离开，稍后继续</button>
+  </view>
 </view>
