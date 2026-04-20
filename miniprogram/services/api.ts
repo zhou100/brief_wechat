@@ -6,6 +6,7 @@ type RequestOptions<TBody> = {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   data?: TBody;
   token?: string;
+  timeoutMs?: number;
 };
 
 export function request<TResponse, TBody = unknown>(
@@ -32,7 +33,7 @@ export function request<TResponse, TBody = unknown>(
       method: options.method || "GET",
       data: options.data as WechatMiniprogram.IAnyObject | string | ArrayBuffer | undefined,
       header: headers,
-      timeout: REQUEST_TIMEOUT_MS,
+      timeout: options.timeoutMs || REQUEST_TIMEOUT_MS,
       success: (res) => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           resolve(res.data as TResponse);
