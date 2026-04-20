@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.3.2] - 2026-04-20
+
+### Fixed
+
+- The miniapp now waits longer for manual day reclassification, so a successful reclassification no longer shows a false failure toast just because the model response took more than 20 seconds.
+- Example miniapp environment files now include the reclassification timeout setting, keeping copied configs buildable.
+
 ## [0.1.3.1] - 2026-04-20
 
 ### Fixed
