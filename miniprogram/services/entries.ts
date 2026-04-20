@@ -8,6 +8,8 @@ import type {
   ShareCardResponse,
   SharedBrief,
   UploadCreateResponse,
+  WeeklySuggestion,
+  WeeklySummary,
 } from "../types/api";
 
 export async function createUpload(params: {
@@ -156,4 +158,28 @@ export function getSharedBrief(shareId: string): Promise<SharedBrief> {
 
 export function getHistory(token: string, skip = 0, limit = 20): Promise<HistoryResponse> {
   return request<HistoryResponse>(`/miniapp/history?skip=${skip}&limit=${limit}`, { token });
+}
+
+export function getWeeklySuggestion(token: string, weekStart: string): Promise<WeeklySuggestion> {
+  return request<WeeklySuggestion>(`/miniapp/weekly/suggestion?week_start=${weekStart}`, { token });
+}
+
+export function getWeeklySummary(token: string, weekStart: string): Promise<WeeklySummary> {
+  return request<WeeklySummary>(`/miniapp/weekly/${weekStart}`, { token });
+}
+
+export function createWeeklySummary(token: string, weekStart: string): Promise<WeeklySummary> {
+  return request<WeeklySummary, { week_start: string }>("/miniapp/weekly", {
+    method: "POST",
+    token,
+    data: { week_start: weekStart },
+  });
+}
+
+export function regenWeeklySummary(token: string, weekStart: string): Promise<WeeklySummary> {
+  return request<WeeklySummary, { week_start: string; force: boolean }>("/miniapp/weekly", {
+    method: "POST",
+    token,
+    data: { week_start: weekStart, force: true },
+  });
 }

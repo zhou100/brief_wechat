@@ -1,25 +1,31 @@
+import asyncio
+import logging
 import uuid
-from datetime import datetime, timezone
+import json
+from datetime import date as date_cls, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from pydantic import BaseModel, Field, field_validator
 from jose import JWTError, jwt
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from ..db import get_db
+from ..models.audit_result import AuditResult
 from ..models.classification import EntryClassification
 from ..models.entry import Entry
 from ..models.jobs import Job, JobStatus
 from ..models.user import User
 from ..services import queue as queue_svc
 from ..services import storage as storage_svc
+from ..services.llm_client import chat_model, get_chat_client
 from ..settings import settings
 from ..utils.auth import create_access_token, get_current_user
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/miniapp", tags=["miniapp"])
 
 
@@ -126,6 +132,39 @@ class SharedBrief(BaseModel):
     summary: str
     open_loop_count: int
     created_at: str
+
+
+class WeeklySuggestionResponse(BaseModel):
+    show: bool
+    week_start: str
+    week_end: str
+    entry_count: int
+
+
+class WeeklyRequest(BaseModel):
+    week_start: str
+    force: bool = False
+
+
+class WeeklyMainThing(BaseModel):
+    title: str
+    body: str
+
+
+class WeeklySummaryResponse(BaseModel):
+    title: str
+    week_start: str
+    week_end: str
+    date_range: str
+    opening: str
+    main_things: List[WeeklyMainThing]
+    remember_items: List[str]
+    family_share_text: str
+    next_week_nudge: str
+    generated_at: str
+    cached: bool = False
+    stale: bool = False
+    regen_count: int = 0
 
 
 @router.post("/auth/login", response_model=MiniappLoginResponse)
@@ -245,6 +284,8 @@ async def create_entry(
     )
     db.add(entry)
     await db.flush()
+    if local_date:
+        await _mark_weekly_audits_stale(db, current_user.id, local_date)
 
     job = await queue_svc.enqueue(db, entry.id, current_user.id)
     await db.commit()
@@ -362,6 +403,8 @@ async def update_classification_item(
         classification.status = body.status
         classification.user_override = True
 
+    if _entry.local_date:
+        await _mark_weekly_audits_stale(db, current_user.id, _entry.local_date)
     await db.commit()
     return {"ok": True}
 
@@ -375,7 +418,79 @@ async def delete_classification_item(
     classification, _entry = await _get_owned_classification(db, item_id, current_user.id)
     classification.status = "dismissed"
     classification.user_override = True
+    if _entry.local_date:
+        await _mark_weekly_audits_stale(db, current_user.id, _entry.local_date)
     await db.commit()
+
+
+@router.get("/weekly/suggestion", response_model=WeeklySuggestionResponse)
+async def get_weekly_suggestion(
+    week_start: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    target_week = _parse_week_start(week_start)
+    week_end = target_week + timedelta(days=6)
+    entries = await _fetch_weekly_entries(db, current_user.id, target_week, week_end)
+    return WeeklySuggestionResponse(
+        show=len(entries) >= 3,
+        week_start=target_week.isoformat(),
+        week_end=week_end.isoformat(),
+        entry_count=len(entries),
+    )
+
+
+@router.get("/weekly/{week_start}", response_model=WeeklySummaryResponse)
+async def get_weekly_summary(
+    week_start: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    target_week = _parse_week_start(week_start)
+    cached = await _get_cached_miniapp_weekly(db, current_user.id, target_week)
+    if cached is None:
+        raise HTTPException(status_code=404, detail="Weekly summary not found")
+    return cached
+
+
+@router.post("/weekly", response_model=WeeklySummaryResponse)
+async def create_weekly_summary(
+    body: WeeklyRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    target_week = _parse_week_start(body.week_start)
+
+    if not body.force:
+        cached = await _get_cached_miniapp_weekly(db, current_user.id, target_week)
+        if cached is not None and not cached.stale:
+            return cached
+
+    regen_count = await _count_weekly_regens(db, current_user.id, target_week)
+    if body.force and regen_count >= 5:
+        raise HTTPException(status_code=429, detail="这个礼拜已经理了好几次了，下次再来。")
+
+    week_end = target_week + timedelta(days=6)
+    entries = await _fetch_weekly_entries(db, current_user.id, target_week, week_end)
+    if len(entries) < 3:
+        raise HTTPException(status_code=400, detail="Need at least 3 entries for a weekly summary")
+
+    summary = await _build_miniapp_weekly_summary(entries, target_week, week_end, cached=False)
+    summary.regen_count = regen_count + 1
+    report_payload = summary.model_dump(exclude={"stale", "regen_count"})
+    db.add(AuditResult(
+        user_id=current_user.id,
+        audit_date=target_week,
+        audit_type="miniapp_weekly",
+        entries_count=len(entries),
+        breakdown_json=None,
+        audit_text=summary.family_share_text,
+        report_json=json.dumps(report_payload, ensure_ascii=False),
+        is_stale=False,
+    ))
+    await db.commit()
+    logger.info("[brief-weekly] generated weekly for user %s week %s (force=%s)", current_user.id, target_week, body.force)
+    return summary
 
 
 @router.post("/share/cards", response_model=ShareCardResponse)
@@ -462,6 +577,20 @@ async def _exchange_wechat_code(code: str) -> Dict[str, str]:
     return data
 
 
+async def _mark_weekly_audits_stale(db: AsyncSession, user_id: int, local_date: date_cls) -> None:
+    week_start = _week_start(local_date)
+    result = await db.execute(
+        select(AuditResult).where(
+            AuditResult.user_id == user_id,
+            AuditResult.audit_date == week_start,
+            AuditResult.audit_type.in_(["weekly", "miniapp_weekly"]),
+            AuditResult.is_stale.is_(False),
+        )
+    )
+    for audit in result.scalars().all():
+        audit.is_stale = True
+
+
 async def _get_owned_entry(db: AsyncSession, entry_id: str, user_id: int) -> Entry:
     entry_uuid = _parse_uuid(entry_id, "entry_id")
     result = await db.execute(
@@ -490,6 +619,104 @@ async def _get_owned_classification(
     if not row:
         raise HTTPException(status_code=404, detail="Item not found")
     return row
+
+
+def _parse_week_start(value: str) -> date_cls:
+    try:
+        parsed = datetime.strptime(value, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid week_start format")
+    return _week_start(parsed)
+
+
+def _week_start(day: date_cls) -> date_cls:
+    return day - timedelta(days=day.weekday())
+
+
+async def _fetch_weekly_entries(
+    db: AsyncSession,
+    user_id: int,
+    week_start: date_cls,
+    week_end: date_cls,
+) -> List[Entry]:
+    result = await db.execute(
+        select(Entry)
+        .where(
+            Entry.user_id == user_id,
+            Entry.local_date >= week_start,
+            Entry.local_date <= week_end,
+        )
+        .options(selectinload(Entry.classifications), selectinload(Entry.jobs))
+        .order_by(Entry.local_date.asc(), Entry.created_at.asc())
+    )
+    return _completed_entries(result.scalars().unique().all())
+
+
+async def _get_cached_miniapp_weekly(
+    db: AsyncSession,
+    user_id: int,
+    week_start: date_cls,
+) -> Optional[WeeklySummaryResponse]:
+    # Phase 1: try fresh (non-stale) record
+    result = await db.execute(
+        select(AuditResult)
+        .where(
+            AuditResult.user_id == user_id,
+            AuditResult.audit_date == week_start,
+            AuditResult.audit_type == "miniapp_weekly",
+            AuditResult.is_stale.is_(False),
+            AuditResult.report_json.isnot(None),
+        )
+        .order_by(AuditResult.generated_at.desc())
+    )
+    cached = result.scalars().first()
+    is_stale = False
+
+    # Phase 2: fall back to most recent stale record
+    if cached is None:
+        stale_result = await db.execute(
+            select(AuditResult)
+            .where(
+                AuditResult.user_id == user_id,
+                AuditResult.audit_date == week_start,
+                AuditResult.audit_type == "miniapp_weekly",
+                AuditResult.is_stale.is_(True),
+                AuditResult.report_json.isnot(None),
+            )
+            .order_by(AuditResult.generated_at.desc())
+        )
+        cached = stale_result.scalars().first()
+        is_stale = True
+
+    if cached is None or not cached.report_json:
+        return None
+
+    regen_count = await _count_weekly_regens(db, user_id, week_start)
+
+    try:
+        payload = json.loads(cached.report_json)
+        payload["cached"] = True
+        payload["stale"] = is_stale
+        payload["regen_count"] = regen_count
+        return WeeklySummaryResponse(**payload)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        logger.error("[brief-weekly] JSONDecodeError in _get_cached_miniapp_weekly for user %s week %s", user_id, week_start)
+        return None
+
+
+async def _count_weekly_regens(
+    db: AsyncSession,
+    user_id: int,
+    week_start: date_cls,
+) -> int:
+    result = await db.execute(
+        select(func.count()).select_from(AuditResult).where(
+            AuditResult.user_id == user_id,
+            AuditResult.audit_date == week_start,
+            AuditResult.audit_type == "miniapp_weekly",
+        )
+    )
+    return result.scalar() or 0
 
 
 def _entry_result(entry: Entry) -> EntryResultResponse:
@@ -543,6 +770,141 @@ def _daily_result(entries: List[Entry], date: Optional[str]) -> EntryResultRespo
         entries=entry_items,
         category_groups=category_groups,
     )
+
+
+async def _generate_opening_sentence(labels: List[str], items: List[str]) -> str:
+    label_str = "、".join(labels[:3]) if labels else "日常生活"
+    prompt = f"用温暖的沪语风格写一句话，总结这个礼拜用户主要做了：{label_str}。不超过50个字。"
+    response = await get_chat_client().chat.completions.create(
+        model=chat_model(),
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.7,
+    )
+    text = response.choices[0].message.content or ""
+    for char in ("*", "_", "#"):
+        text = text.replace(char, "")
+    return text.strip() or "这个礼拜，你讲过的话已经帮你整理好了。"
+
+
+async def _build_miniapp_weekly_summary(
+    entries: List[Entry],
+    week_start: date_cls,
+    week_end: date_cls,
+    cached: bool = False,
+) -> WeeklySummaryResponse:
+    visible_classifications = [
+        classification
+        for entry in entries
+        for classification in sorted(entry.classifications, key=lambda item: item.display_order)
+        if classification.display_text and classification.status != "dismissed"
+    ]
+    grouped: Dict[str, List[str]] = {}
+    for classification in visible_classifications:
+        category = classification.category if classification.category else "REFLECTION"
+        grouped.setdefault(category, []).append(classification.display_text)
+
+    ordered_groups = sorted(
+        grouped.items(),
+        key=lambda item: (0 if item[0] in {"TODO", "MAITAISHAO", "FAMILY"} else 1, -len(item[1])),
+    )
+    main_things = [
+        WeeklyMainThing(
+            title=_weekly_thing_title(category),
+            body=_weekly_thing_body(category, items),
+        )
+        for category, items in ordered_groups
+        if category != "TODO"
+    ][:3]
+    if not main_things:
+        transcript_snippets = [entry.transcript for entry in entries if entry.transcript]
+        main_things = [
+            WeeklyMainThing(
+                title="这礼拜讲过几件事体",
+                body=_join_examples(transcript_snippets, "讲过的话已经放在一起，方便回头看。"),
+            )
+        ]
+
+    remember_items = [
+        text
+        for classification in visible_classifications
+        if classification.category == "TODO"
+        for text in [classification.display_text]
+    ][:5]
+    top_labels = [_category_label(category) for category, _items in ordered_groups[:3]]
+    display_items = [c.display_text for c in visible_classifications if c.display_text][:5]
+
+    try:
+        opening = await asyncio.wait_for(
+            _generate_opening_sentence(top_labels, display_items),
+            timeout=3.0,
+        )
+    except Exception:
+        opening = "这个礼拜，你讲过的话已经帮你整理好了。"
+
+    family_share_text = _weekly_family_share_text(top_labels, remember_items)
+
+    return WeeklySummaryResponse(
+        title="上个礼拜的事体",
+        week_start=week_start.isoformat(),
+        week_end=week_end.isoformat(),
+        date_range=f"{week_start.month}月{week_start.day}日到{week_end.month}月{week_end.day}日",
+        opening=opening,
+        main_things=main_things,
+        remember_items=remember_items,
+        family_share_text=family_share_text,
+        next_week_nudge="想到事情就直接讲，不用等想清楚。讲过了，我再帮你理清爽。",
+        generated_at=datetime.now(timezone.utc).isoformat(),
+        cached=cached,
+    )
+
+
+def _weekly_thing_title(category: str) -> str:
+    label = _category_label(category)
+    titles = {
+        "MAITAISHAO": "买汰烧和吃饭的事讲得比较多",
+        "FAMILY": "家里人的事放在心上",
+        "EARNING": "办过的事体已经放好",
+        "LEARNING": "这礼拜也有学到和想明白的事",
+        "RELAXING": "休息和放松也记下来了",
+        "EXPERIMENT": "有几件事可以试试看",
+        "REFLECTION": "有些想法值得留着回头看",
+        "TIME_RECORD": "这礼拜的时间也记了一些",
+    }
+    return titles.get(category, f"{label}讲得比较多")
+
+
+def _weekly_thing_body(category: str, items: List[str]) -> str:
+    fallback = "这些话已经帮你整理在一起，回头看会清楚一点。"
+    examples = _join_examples(items, fallback)
+    if category == "MAITAISHAO":
+        return f"你提到{examples}，家里吃饭安排不少。"
+    if category == "FAMILY":
+        return f"你提到{examples}，这些都是跟家里人有关的事。"
+    if category == "EXPERIMENT":
+        return f"你提到{examples}，可以留着之后慢慢试。"
+    if category == "REFLECTION":
+        return f"你提到{examples}，这些想法以后回头看也有用。"
+    return f"你提到{examples}，我先帮你放在这一类。"
+
+
+def _weekly_family_share_text(labels: List[str], remember_items: List[str]) -> str:
+    if labels:
+        text = f"上个礼拜主要讲了{'、'.join(labels[:3])}"
+    else:
+        text = "上个礼拜讲过的几件事已经整理好了"
+    if remember_items:
+        return text + f"。还有{len(remember_items)}件事要记得跟进，我已经帮你列出来了。"
+    return text + "。事情已经放在一起，看起来清爽一点。"
+
+
+def _join_examples(items: List[str], fallback: str) -> str:
+    clean_items = ["".join((item or "").split()) for item in items if item]
+    clean_items = [item[:36] for item in clean_items if item]
+    if not clean_items:
+        return fallback
+    if len(clean_items) == 1:
+        return clean_items[0]
+    return "、".join(clean_items[:3])
 
 
 def _entry_item(entry: Entry) -> Dict[str, Any]:

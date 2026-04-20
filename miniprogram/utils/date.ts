@@ -35,6 +35,17 @@ export function addLocalDays(value: string, days: number): string {
   return `${nextYear}-${nextMonth}-${nextDay}`;
 }
 
+export function previousWeekStart(value = todayLocalDate()): string {
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  const daysSinceMonday = (date.getDay() + 6) % 7;
+  date.setDate(date.getDate() - daysSinceMonday - 7);
+  const nextYear = date.getFullYear();
+  const nextMonth = `${date.getMonth() + 1}`.padStart(2, "0");
+  const nextDay = `${date.getDate()}`.padStart(2, "0");
+  return `${nextYear}-${nextMonth}-${nextDay}`;
+}
+
 export function formatDayLabel(value: string, today = todayLocalDate()): string {
   if (value === today) return "今天";
   if (value === addLocalDays(today, -1)) return "昨天";

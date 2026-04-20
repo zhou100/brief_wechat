@@ -8,6 +8,8 @@ import type {
   SharedBrief,
   UploadCreateResponse,
   CloudUploadResponse,
+  WeeklySuggestion,
+  WeeklySummary,
 } from "../types/api";
 
 let pollCount = 0;
@@ -110,6 +112,22 @@ function route<TResponse, TBody>(
     } satisfies SharedBrief as TResponse;
   }
 
+  if (path.startsWith("/miniapp/weekly/suggestion")) {
+    const weekStart = queryValue(path, "week_start") || "2026-04-13";
+    return {
+      show: true,
+      week_start: weekStart,
+      week_end: "2026-04-19",
+      entry_count: 4,
+    } satisfies WeeklySuggestion as TResponse;
+  }
+
+  if (path === "/miniapp/weekly" || path.startsWith("/miniapp/weekly/")) {
+    const body = options.data as { week_start?: string } | undefined;
+    const weekStart = body?.week_start || path.split("/").pop() || "2026-04-13";
+    return mockWeeklySummary(weekStart) as TResponse;
+  }
+
   if (path.startsWith("/miniapp/history")) {
     return {
       items: [],
@@ -120,6 +138,43 @@ function route<TResponse, TBody>(
   }
 
   return undefined as TResponse;
+}
+
+function queryValue(path: string, key: string): string {
+  const query = path.split("?", 2)[1] || "";
+  const params = query.split("&");
+  for (const param of params) {
+    const [name, value] = param.split("=");
+    if (name === key) return decodeURIComponent(value || "");
+  }
+  return "";
+}
+
+function mockWeeklySummary(weekStart: string): WeeklySummary {
+  return {
+    title: "上个礼拜的事体",
+    week_start: weekStart,
+    week_end: "2026-04-19",
+    date_range: "4月13日到4月19日",
+    opening: "这一礼拜，主要讲到买汰烧、照顾家里人。还有几件要记牢的小事。",
+    main_things: [
+      {
+        title: "买汰烧和吃饭的事讲得比较多",
+        body: "你提到买菜、汰菜、烧了两个菜，家里吃饭安排不少。",
+      },
+      {
+        title: "家里人的事放在心上",
+        body: "你提到问药和给家里人回电话，这些都是跟家里人有关的事。",
+      },
+    ],
+    remember_items: ["问一下药还有没有", "给小王回个电话"],
+    family_share_text: "上个礼拜主要讲了买汰烧、照顾家里人。还有2件事要记得跟进，我已经帮你列出来了。",
+    next_week_nudge: "想到事情就直接讲，不用等想清楚。讲过了，我再帮你理清爽。",
+    generated_at: new Date().toISOString(),
+    cached: false,
+    stale: false,
+    regen_count: 0,
+  };
 }
 
 function mockBrief(): DailyBrief {
