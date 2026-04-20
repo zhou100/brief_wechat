@@ -399,7 +399,7 @@ async def reclassify_day(
     result = await db.execute(
         select(Entry)
         .where(Entry.user_id == current_user.id, Entry.local_date == local_date)
-        .options(selectinload(Entry.classifications))
+        .options(selectinload(Entry.classifications), selectinload(Entry.jobs))
         .order_by(Entry.created_at.asc())
     )
     entries = _completed_entries(result.scalars().unique().all())
@@ -411,7 +411,21 @@ async def reclassify_day(
         text = entry.transcript
         if not text or not text.strip():
             continue
-        cat_results = await categorize_text(text)
+        try:
+            cat_results = await categorize_text(text)
+        except RuntimeError as exc:
+            logger.warning(
+                "Miniapp day reclassify failed for user=%s date=%s entry=%s: %s",
+                current_user.id,
+                local_date,
+                entry.id,
+                exc,
+            )
+            await db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=_classification_unavailable_detail(exc),
+            ) from exc
         for c in list(entry.classifications):
             await db.delete(c)
         await db.flush()
@@ -436,6 +450,12 @@ async def reclassify_day(
     await _mark_weekly_audits_stale(db, current_user.id, local_date)
     await db.commit()
     return {"ok": True, "reclassified": reclassified}
+
+
+def _classification_unavailable_detail(exc: RuntimeError) -> str:
+    if settings.MINIAPP_DEBUG_ERRORS:
+        return str(exc)[:500]
+    return "分类服务暂时不可用，请稍后重试。"
 
 
 @router.post("/items/{item_id}")

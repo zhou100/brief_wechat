@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.3.1] - 2026-04-20
+
+### Fixed
+
+- Fixed day reclassification in the miniapp by eager-loading job rows before filtering completed entries, avoiding async SQLAlchemy `MissingGreenlet` failures in production.
+- Reclassification now returns a retryable service-unavailable response if the classifier backend fails, instead of leaking a generic internal server error.
+
 ## [0.1.3.0] - 2026-04-20
 
 ### Added

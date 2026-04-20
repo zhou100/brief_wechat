@@ -5,6 +5,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.orm import selectinload
+
+from app.models.entry import Entry
 
 
 @pytest.fixture
@@ -160,6 +163,61 @@ async def test_reclassify_day_replaces_items_with_model_version(app):
     assert added.extracted_text == "出门买菜做饭"
     assert added.model_version == "deepseek-v3.2"
     db.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_reclassify_day_eager_loads_jobs_for_completed_filter(app):
+    db = AsyncMock()
+    db.execute = AsyncMock(side_effect=AssertionError("stop after statement inspection"))
+
+    _override_auth(app)
+    _override_db(app, db)
+
+    with pytest.raises(AssertionError, match="stop after statement inspection"):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            await client.post("/miniapp/daily/2026-04-18/reclassify")
+
+    stmt = db.execute.call_args.args[0]
+    expected_jobs_option = selectinload(Entry.jobs)
+    assert any(
+        option.path == expected_jobs_option.path
+        for option in stmt._with_options
+    )
+
+
+@pytest.mark.asyncio
+async def test_reclassify_day_returns_503_when_classifier_unavailable(app):
+    old_item = _classification(text="整段错进感悟", category="REFLECTION")
+    entry = _entry(old_item)
+
+    entries_result = MagicMock()
+    entries_result.scalars.return_value.unique.return_value.all.return_value = [entry]
+
+    db = AsyncMock()
+    db.execute = AsyncMock(return_value=entries_result)
+    db.delete = AsyncMock()
+    db.flush = AsyncMock()
+    db.commit = AsyncMock()
+    db.add = MagicMock()
+    db.rollback = AsyncMock()
+
+    _override_auth(app)
+    _override_db(app, db)
+
+    with patch(
+        "app.routes.miniapp.categorize_text",
+        AsyncMock(side_effect=RuntimeError("classification_api_failed: upstream timeout")),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post("/miniapp/daily/2026-04-18/reclassify")
+
+    assert resp.status_code == 503
+    assert resp.json() == {"detail": "分类服务暂时不可用，请稍后重试。"}
+    db.rollback.assert_awaited_once()
+    db.delete.assert_not_awaited()
+    db.flush.assert_not_awaited()
+    db.add.assert_not_called()
+    db.commit.assert_not_awaited()
 
 
 def test_daily_result_filters_dismissed_items():
