@@ -66,7 +66,7 @@ The existing weekly-detail layout was already solid. The 4 new interaction momen
 
 ## Risks
 
-- Kimi may return opening text > 50 chars; the `opening-note` panel expands gracefully but sanitize markdown
+- The configured LLM may return opening text > 50 chars; the `opening-note` panel expands gracefully but sanitize markdown
 - Stale hint is muted/small — if user is visually impaired, they may still miss it; acceptable given scope
 - Three-button bottom-actions area on small phones (320px) — test on iPhone SE
 

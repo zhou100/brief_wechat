@@ -8,7 +8,7 @@ WeChat Mini Program
   -> CloudBase Run / CloudBase Hosting domain
   -> FastAPI Docker backend
   -> CloudBase built-in MySQL
-  -> iFlytek speech-to-text + Moonshot/Kimi summarization pipeline
+  -> iFlytek speech-to-text + TokenHub LLM summarization pipeline
 ```
 
 ## Why CloudBase Run
@@ -49,9 +49,13 @@ WECHAT_SECRET=<mini program appsecret>
 MINIAPP_PUBLIC_BASE_URL=https://<cloudbase-run-domain>
 USE_CLOUDBASE_STORAGE=true
 
-MOONSHOT_API_KEY=<moonshot key>
-MOONSHOT_BASE_URL=https://api.moonshot.cn/v1
-MOONSHOT_MODEL=kimi-k2.5
+TOKENHUB_API_KEY=<tokenhub key>
+TOKENHUB_BASE_URL=https://tokenhub.tencentmaas.com/v1
+LLM_MODEL=deepseek-v3.2
+CLASSIFICATION_MODEL=deepseek-v3.2
+CLASSIFICATION_FALLBACK_MODEL=hunyuan-2.0-instruct-20251111
+CLASSIFICATION_TEMPERATURE=0.2
+CLASSIFICATION_TIMEOUT_SECONDS=20
 
 XFYUN_APP_ID=<xfyun app id>
 XFYUN_API_KEY=<xfyun api key>

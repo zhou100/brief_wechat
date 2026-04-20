@@ -7,7 +7,8 @@ import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.services.categorization import SYSTEM_PROMPT, categorize_text
+from app.services.categorization import SYSTEM_PROMPT, _temperature_for_model, categorize_text
+from app.services.llm_client import chat_provider
 
 
 def _mock_openai_response(content: str):
@@ -24,6 +25,33 @@ def test_prompt_defaults_daily_narration_to_done_categories():
     assert "not TODO" in SYSTEM_PROMPT
     assert "今天早上" in SYSTEM_PROMPT
     assert "提醒我" in SYSTEM_PROMPT
+
+
+def test_temperature_defaults_to_classification_setting_with_kimi_override():
+    assert _temperature_for_model("kimi-k2.5") == 1.0
+    assert _temperature_for_model("other-model") == 0.2
+
+
+def test_tokenhub_provider_keeps_key_and_base_url_together(monkeypatch):
+    monkeypatch.setattr("app.services.llm_client.settings.LLM_API_KEY", "")
+    monkeypatch.setattr("app.services.llm_client.settings.LLM_BASE_URL", "")
+    monkeypatch.setattr("app.services.llm_client.settings.TOKENHUB_API_KEY", "tokenhub-key")
+    monkeypatch.setattr("app.services.llm_client.settings.TOKENHUB_BASE_URL", "https://tokenhub.example/v1")
+    monkeypatch.setattr("app.services.llm_client.settings.MOONSHOT_API_KEY", "moonshot-key")
+    monkeypatch.setattr("app.services.llm_client.settings.MOONSHOT_BASE_URL", "https://moonshot.example/v1")
+
+    assert chat_provider() == ("tokenhub-key", "https://tokenhub.example/v1")
+
+
+def test_moonshot_provider_only_used_when_tokenhub_missing(monkeypatch):
+    monkeypatch.setattr("app.services.llm_client.settings.LLM_API_KEY", "")
+    monkeypatch.setattr("app.services.llm_client.settings.LLM_BASE_URL", "")
+    monkeypatch.setattr("app.services.llm_client.settings.TOKENHUB_API_KEY", "")
+    monkeypatch.setattr("app.services.llm_client.settings.TOKENHUB_BASE_URL", "https://tokenhub.example/v1")
+    monkeypatch.setattr("app.services.llm_client.settings.MOONSHOT_API_KEY", "moonshot-key")
+    monkeypatch.setattr("app.services.llm_client.settings.MOONSHOT_BASE_URL", "https://moonshot.example/v1")
+
+    assert chat_provider() == ("moonshot-key", "https://moonshot.example/v1")
 
 
 # ── Happy path ────────────────────────────────────────────────────────────────
@@ -99,6 +127,22 @@ async def test_all_valid_categories_accepted():
     assert result[8]["category"] == "EARNING"  # was TIME_RECORD
 
 
+@pytest.mark.asyncio
+async def test_fallback_model_used_when_primary_api_fails():
+    items = [{"text": "出门买菜做饭", "category": "MAITAISHAO"}]
+    mock_create = AsyncMock(side_effect=[
+        Exception("primary overloaded"),
+        _mock_openai_response(json.dumps(items)),
+    ])
+
+    with patch("app.services.categorization.get_chat_client") as mock_client:
+        mock_client.return_value.chat.completions.create = mock_create
+        result = await categorize_text("今天早上10点出门买菜做饭")
+
+    assert result == [{"text": "出门买菜做饭", "category": "MAITAISHAO", "model": "hunyuan-2.0-instruct-20251111"}]
+    assert mock_create.await_count == 2
+
+
 # ── Fallback: empty / malformed LLM response ─────────────────────────────────
 
 @pytest.mark.asyncio
@@ -144,16 +188,15 @@ async def test_single_dict_instead_of_list_falls_back():
 
 
 @pytest.mark.asyncio
-async def test_api_exception_falls_back_to_thought():
-    """OpenAI API call raises an exception → fallback to REFLECTION, no crash."""
+async def test_api_exception_raises_instead_of_fake_reflection():
+    """OpenAI API errors bubble up so the worker marks the job failed."""
     mock_create = AsyncMock(side_effect=Exception("Network error"))
 
     with patch("app.services.categorization.get_chat_client") as mock_client:
         mock_client.return_value.chat.completions.create = mock_create
-        result = await categorize_text("Something happened today.")
 
-    assert len(result) == 1
-    assert result[0]["category"] == "REFLECTION"
+        with pytest.raises(RuntimeError, match="classification_api_failed"):
+            await categorize_text("Something happened today.")
 
 
 # ── Empty transcript ──────────────────────────────────────────────────────────

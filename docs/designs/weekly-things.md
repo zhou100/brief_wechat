@@ -23,7 +23,7 @@ just a clear, warm note that says "here's what grandma was up to this week."
 
 ## Accepted Scope
 
-- Add one Kimi (`kimi-k2.5`) API call in `_build_miniapp_weekly_summary` for the `opening` paragraph
+- Add one configured LLM API call in `_build_miniapp_weekly_summary` for the `opening` paragraph
 - Add `重新理一理` button on weekly-detail page; `POST /weekly` with `force: bool = True` in body regenerates
 - Add `stale: bool` and `regen_count: int` fields to `WeeklySummaryResponse`; GET returns 200+`stale=true` when stale (not 404)
 - Remove daily share card from day page; weekly detail page is the primary share surface
@@ -34,7 +34,7 @@ just a clear, warm note that says "here's what grandma was up to this week."
 
 Before shipping this branch:
 
-1. **LLM opening** — Kimi (`kimi-k2.5`) call with top 3 category labels + 5 display_text items; fallback to deterministic template on timeout (>3s) or API error; strip `*_#` markdown chars from returned string before storing
+1. **LLM opening** — configured `get_chat_client()` call with top 3 category labels + 5 display_text items; fallback to deterministic template on timeout (>3s) or API error; strip `*_#` markdown chars from returned string before storing
 2. **`重新理一理` button** — add to `weekly-detail.wxml` in `.bottom-actions`, between `发给屋里人看看` and `再讲一段`; `wx:if="{{summary.stale}}"` on the button; wire to `POST /weekly` with `{week_start, force: true}` in body; button shows `loading="true"` + copy `正在重新理` during regen (not full-page reload); after 429 or when `regen_count >= 5`, disable button with copy `今礼拜理好几次了`
 3. **Stale hint** — add `<text wx:if="{{summary.stale}}" class="muted">讲过新的以后，可以重新理一理</text>` below `summary.date_range`, before the opening section
 4. **Weekly share** — remove `prepareShare()` from `day.ts`; remove `<view class="share-area">` from `day.wxml`; keep `onShareAppMessage` on weekly-detail
@@ -57,11 +57,11 @@ Before shipping this branch:
 - `regen_count`: always `COUNT(*) WHERE user_id=X AND week_start=Y AND audit_type="miniapp_weekly"` (stale+fresh)
 
 ### LLM opening paragraph
-- Model: Kimi via `get_chat_client()` + `chat_model()` (`kimi-k2.5` default) — NOT Claude/Anthropic
+- Model: configured OpenAI-compatible provider via `get_chat_client()` + `chat_model()` (`deepseek-v3.2` default) — NOT Claude/Anthropic
 - Extracted to `async def _generate_opening_sentence(labels: list[str], items: list[str]) -> str`
 - Input: top 3 category labels + up to 5 display_text items (≤200 chars)
 - Prompt: `"用温暖的沪语风格写一句话，总结这个礼拜用户主要做了：{labels}。不超过50个字。"`
-- Temperature: 0.7 (warmer, more varied than categorization's 0.3)
+- Temperature: 0.7 (warmer, more varied than categorization's 0.2)
 - Timeout: 3s; on timeout or exception, return fallback text silently
 - Example output: `"这个礼拜，你买菜做饭、照顾家人，还学了不少新东西——忙忙碌碌，但都是有意思的事。"`
 - Fallback text (on timeout/error): `"这个礼拜，你讲过的话已经帮你整理好了。"`

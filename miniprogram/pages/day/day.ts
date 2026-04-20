@@ -7,6 +7,7 @@ import {
   getEntryResult,
   getJob,
   getWeeklySuggestion,
+  reclassifyDay,
   submitRecordedEntry,
   updateItemText,
 } from "../../services/entries";
@@ -44,6 +45,7 @@ Page({
     errorText: "",
     editingItemId: "",
     editDraft: "",
+    reclassifying: false,
     viewMode: "category" as "category" | "timeline",
     weeklySuggestion: null as WeeklySuggestion | null,
   },
@@ -338,6 +340,22 @@ Page({
     const userId = app.globalData.user?.id || "unknown";
     wx.setStorageSync(weeklyPromptKey(userId, suggestion.week_start, "dismissed"), "1");
     this.setData({ weeklySuggestion: null });
+  },
+
+  async reclassify() {
+    if (this.data.reclassifying || this.data.processing) return;
+    const date = this.data.date || todayLocalDate();
+    this.setData({ reclassifying: true });
+    try {
+      const token = await app.ensureLogin();
+      await reclassifyDay(token, date);
+      await this.load(this.data.entryId, date);
+      wx.showToast({ title: "重新分好了", icon: "success" });
+    } catch (error) {
+      wx.showToast({ title: "重新分类失败，请再试", icon: "none" });
+    } finally {
+      this.setData({ reclassifying: false });
+    }
   },
 
   startEdit(event: WechatMiniprogram.TouchEvent) {

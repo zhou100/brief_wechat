@@ -21,6 +21,7 @@ from ..models.jobs import Job, JobStatus
 from ..models.user import User
 from ..services import queue as queue_svc
 from ..services import storage as storage_svc
+from ..services.categorization import categorize_text
 from ..services.llm_client import chat_model, get_chat_client
 from ..settings import settings
 from ..utils.auth import create_access_token, get_current_user
@@ -381,6 +382,60 @@ async def regenerate_entry(
     job = await queue_svc.enqueue(db, entry.id, current_user.id)
     await db.commit()
     return EntryCreateResponse(entry_id=str(entry.id), job_id=str(job.id))
+
+
+@router.post("/daily/{date}/reclassify")
+async def reclassify_day(
+    date: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Re-run AI categorization on all entries for a given date."""
+    try:
+        local_date = datetime.strptime(date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format")
+
+    result = await db.execute(
+        select(Entry)
+        .where(Entry.user_id == current_user.id, Entry.local_date == local_date)
+        .options(selectinload(Entry.classifications))
+        .order_by(Entry.created_at.asc())
+    )
+    entries = _completed_entries(result.scalars().unique().all())
+    if not entries:
+        raise HTTPException(status_code=404, detail="No entries found for this date")
+
+    reclassified = 0
+    for entry in entries:
+        text = entry.transcript
+        if not text or not text.strip():
+            continue
+        cat_results = await categorize_text(text)
+        for c in list(entry.classifications):
+            await db.delete(c)
+        await db.flush()
+        for i, item in enumerate(cat_results):
+            est_min = item.get("estimated_minutes")
+            try:
+                est_min_val = int(est_min) if est_min is not None else None
+                if est_min_val is not None and not (0 <= est_min_val <= 1440):
+                    est_min_val = None
+            except (ValueError, TypeError):
+                est_min_val = None
+            db.add(EntryClassification(
+                entry_id=entry.id,
+                category=item["category"],
+                extracted_text=item.get("text"),
+                estimated_minutes=est_min_val,
+                display_order=i,
+                model_version=item.get("model") or settings.CLASSIFICATION_MODEL,
+            ))
+        reclassified += 1
+
+    await _mark_weekly_audits_stale(db, current_user.id, local_date)
+    await db.commit()
+    return {"ok": True, "reclassified": reclassified}
 
 
 @router.post("/items/{item_id}")

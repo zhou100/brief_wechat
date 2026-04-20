@@ -1,6 +1,6 @@
 import uuid
 from datetime import date, datetime, timezone
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
@@ -56,6 +56,10 @@ def _entry(item):
     entry.raw_audio_key = "cloud://env/audio.mp3"
     entry.transcript = "今天买点青菜。"
     entry.classifications = [item]
+    job = MagicMock()
+    job.status = "done"
+    job.created_at = datetime(2026, 4, 18, 8, 1, tzinfo=timezone.utc)
+    entry.jobs = [job]
     return entry
 
 
@@ -112,6 +116,50 @@ async def test_update_miniapp_item_cross_user_returns_404(app):
         resp = await client.post(f"/miniapp/items/{uuid.uuid4()}", json={"edited_text": "别人家的事"})
 
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_reclassify_day_replaces_items_with_model_version(app):
+    old_item = _classification(text="整段错进感悟", category="REFLECTION")
+    entry = _entry(old_item)
+
+    entries_result = MagicMock()
+    entries_result.scalars.return_value.unique.return_value.all.return_value = [entry]
+    stale_result = MagicMock()
+    stale_result.scalars.return_value.all.return_value = []
+
+    db = AsyncMock()
+    db.execute = AsyncMock(side_effect=[entries_result, stale_result])
+    db.delete = AsyncMock()
+    db.flush = AsyncMock()
+    db.commit = AsyncMock()
+    db.add = MagicMock()
+
+    _override_auth(app)
+    _override_db(app, db)
+
+    with patch(
+        "app.routes.miniapp.categorize_text",
+        AsyncMock(return_value=[
+            {
+                "text": "出门买菜做饭",
+                "category": "MAITAISHAO",
+                "estimated_minutes": None,
+                "model": "deepseek-v3.2",
+            }
+        ]),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post("/miniapp/daily/2026-04-18/reclassify")
+
+    assert resp.status_code == 200
+    assert resp.json() == {"ok": True, "reclassified": 1}
+    db.delete.assert_awaited_once_with(old_item)
+    added = db.add.call_args.args[0]
+    assert added.category == "MAITAISHAO"
+    assert added.extracted_text == "出门买菜做饭"
+    assert added.model_version == "deepseek-v3.2"
+    db.commit.assert_awaited_once()
 
 
 def test_daily_result_filters_dismissed_items():

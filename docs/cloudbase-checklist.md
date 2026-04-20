@@ -39,9 +39,13 @@ Set these in CloudBase Run service settings.
 | `WECHAT_SECRET` | Your Mini Program AppSecret |
 | `MINIAPP_PUBLIC_BASE_URL` | Your CloudBase Run HTTPS domain |
 | `USE_CLOUDBASE_STORAGE` | `true` |
-| `MOONSHOT_API_KEY` | Your Moonshot/Kimi API key |
-| `MOONSHOT_BASE_URL` | `https://api.moonshot.cn/v1` |
-| `MOONSHOT_MODEL` | `kimi-k2.5` |
+| `TOKENHUB_API_KEY` | Your Tencent TokenHub API key |
+| `TOKENHUB_BASE_URL` | `https://tokenhub.tencentmaas.com/v1` |
+| `LLM_MODEL` | `deepseek-v3.2` |
+| `CLASSIFICATION_MODEL` | `deepseek-v3.2` |
+| `CLASSIFICATION_FALLBACK_MODEL` | `hunyuan-2.0-instruct-20251111` |
+| `CLASSIFICATION_TEMPERATURE` | `0.2` |
+| `CLASSIFICATION_TIMEOUT_SECONDS` | `20` |
 | `XFYUN_APP_ID` | Your iFlytek app id |
 | `XFYUN_API_KEY` | Your iFlytek API key |
 | `XFYUN_API_SECRET` | Your iFlytek API secret |

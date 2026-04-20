@@ -167,6 +167,32 @@
   padding: 4rpx 0;
 }
 
+.result-intro-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.reclassify-btn {
+  font-size: 24rpx;
+  padding: 0 20rpx;
+  min-height: 56rpx;
+  border-radius: 8rpx;
+  border: 2rpx solid #e7d7d2;
+  background: #ffffff;
+  color: #b91c1c;
+  line-height: 56rpx;
+}
+
+.reclassify-btn::after {
+  border: 0;
+}
+
+.reclassify-btn.disabled {
+  opacity: 0.5;
+}
+
 .category-card {
   border-left-width: 10rpx;
 }
