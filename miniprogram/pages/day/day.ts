@@ -2,16 +2,16 @@ import type { BriefApp } from "../../app";
 import { JOB_POLL_INTERVAL_MS } from "../../env";
 import { RECORDING_PRESETS, startRecording, stopRecording } from "../../services/recorder";
 import {
-  createShareCard,
   deleteItem,
   getDailyBrief,
   getEntryResult,
   getJob,
+  getWeeklySuggestion,
   submitRecordedEntry,
   updateItemText,
 } from "../../services/entries";
-import type { CategoryGroup, HistoryItem, ShareCard } from "../../types/api";
-import { addLocalDays, formatDayLabel, formatDuration, sanitizeLocalDate, todayLocalDate } from "../../utils/date";
+import type { CategoryGroup, HistoryItem, WeeklySuggestion } from "../../types/api";
+import { addLocalDays, formatDayLabel, formatDuration, previousWeekStart, sanitizeLocalDate, todayLocalDate } from "../../utils/date";
 import { jobErrorText, userFacingError } from "../../utils/errors";
 
 const app = getApp<BriefApp>();
@@ -31,7 +31,6 @@ Page({
     entries: [] as HistoryItem[],
     entryCount: 0,
     contentCount: 0,
-    shareCard: null as ShareCard | null,
     starting: false,
     recording: false,
     stopping: false,
@@ -46,12 +45,12 @@ Page({
     editingItemId: "",
     editDraft: "",
     viewMode: "category" as "category" | "timeline",
+    weeklySuggestion: null as WeeklySuggestion | null,
   },
 
   recordTimer: 0 as number,
   pollTimer: 0 as number,
   loadRequestId: 0 as number,
-  shareRequestId: 0 as number,
   recordingDate: "" as string,
 
   onLoad(query: Record<string, string | undefined>) {
@@ -90,13 +89,9 @@ Page({
         entries,
         entryCount: entries.length || (result.entry_id ? 1 : 0),
         contentCount: countContent(result.category_groups || [], result.key_points || []),
-        shareCard: result.share_card || null,
         viewMode: categoryGroups.length > 0 ? this.data.viewMode : entries.length > 0 ? "timeline" : "category",
       });
-      const hasShareableContent = Boolean(result.entry_id) || Boolean(result.entries?.length);
-      if (!result.share_card && hasShareableContent) {
-        this.prepareShare(false);
-      }
+      this.loadWeeklySuggestion(token);
     } catch (error) {
       if (requestId !== this.loadRequestId) return;
       wx.showToast({ title: "今天内容暂时打不开", icon: "none" });
@@ -121,11 +116,11 @@ Page({
       entries: [],
       entryCount: 0,
       contentCount: 0,
-      shareCard: null,
       errorText: "",
       editingItemId: "",
       editDraft: "",
       viewMode: "category",
+      weeklySuggestion: null,
       ...dateViewState(nextDate, today),
     });
     this.load("", nextDate);
@@ -302,24 +297,47 @@ Page({
     }
   },
 
-  async prepareShare(showError = true) {
-    if (!this.data.date && !this.data.entryId) return;
-    const requestId = ++this.shareRequestId;
-    const date = this.data.date;
-    const entryId = this.data.entryId;
-    try {
-      const token = await app.ensureLogin();
-      const response = await createShareCard(token, {
-        date,
-        entryId: date ? undefined : entryId,
-      });
-      if (requestId !== this.shareRequestId || date !== this.data.date || entryId !== this.data.entryId) return;
-      this.setData({ shareCard: response.card });
-    } catch (error) {
-      if (showError) {
-        wx.showToast({ title: "暂时发不出去", icon: "none" });
-      }
+  async loadWeeklySuggestion(token: string) {
+    const today = todayLocalDate();
+    if (this.data.date !== today || this.data.processing) {
+      this.setData({ weeklySuggestion: null });
+      return;
     }
+
+    const weekStart = previousWeekStart(today);
+    const userId = app.globalData.user?.id || "unknown";
+    if (wx.getStorageSync(weeklyPromptKey(userId, weekStart, "seen")) || wx.getStorageSync(weeklyPromptKey(userId, weekStart, "dismissed"))) {
+      this.setData({ weeklySuggestion: null });
+      return;
+    }
+
+    try {
+      const suggestion = await getWeeklySuggestion(token, weekStart);
+      if (this.data.date !== today || this.data.processing) return;
+      this.setData({ weeklySuggestion: suggestion.show ? suggestion : null });
+    } catch (error) {
+      console.warn("[brief-day] weekly suggestion skipped", error);
+      this.setData({ weeklySuggestion: null });
+    }
+  },
+
+  openWeeklyThings() {
+    const suggestion = this.data.weeklySuggestion;
+    if (!suggestion) return;
+    const userId = app.globalData.user?.id || "unknown";
+    wx.setStorageSync(weeklyPromptKey(userId, suggestion.week_start, "seen"), "1");
+    this.setData({ weeklySuggestion: null });
+    wx.navigateTo({
+      url: `/pkg_history/pages/weekly-detail/weekly-detail?week_start=${suggestion.week_start}`,
+    });
+  },
+
+  dismissWeeklyThings() {
+    const suggestion = this.data.weeklySuggestion;
+    if (!suggestion) return;
+    const userId = app.globalData.user?.id || "unknown";
+    wx.setStorageSync(weeklyPromptKey(userId, suggestion.week_start, "dismissed"), "1");
+    this.setData({ weeklySuggestion: null });
   },
 
   startEdit(event: WechatMiniprogram.TouchEvent) {
@@ -378,14 +396,9 @@ Page({
   },
 
   onShareAppMessage() {
-    const card = this.data.shareCard;
-    const shareId = card?.share_id || "";
     return {
-      title: card?.title || "今天已经整理清爽了",
-      path: shareId
-        ? `/pkg_history/pages/share/share?share_id=${shareId}`
-        : `/pages/day/day?date=${this.data.date || todayLocalDate()}`,
-      imageUrl: card?.image_url,
+      title: "今天已经整理清爽了",
+      path: `/pages/day/day?date=${this.data.date || todayLocalDate()}`,
     };
   },
 
@@ -491,4 +504,8 @@ function vibrate() {
   } catch (error) {
     console.warn("[brief-day] vibrate unavailable", error);
   }
+}
+
+function weeklyPromptKey(userId: string, weekStart: string, state: "seen" | "dismissed"): string {
+  return `brief_weekly_prompt_${state}:${userId}:${weekStart}`;
 }

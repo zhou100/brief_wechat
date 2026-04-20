@@ -111,3 +111,31 @@ export type SharedBrief = {
   open_loop_count: number;
   created_at: string;
 };
+
+export type WeeklySuggestion = {
+  show: boolean;
+  week_start: string;
+  week_end: string;
+  entry_count: number;
+};
+
+export type WeeklyMainThing = {
+  title: string;
+  body: string;
+};
+
+export type WeeklySummary = {
+  title: string;
+  week_start: string;
+  week_end: string;
+  date_range: string;
+  opening: string;
+  main_things: WeeklyMainThing[];
+  remember_items: string[];
+  family_share_text: string;
+  next_week_nudge: string;
+  generated_at: string;
+  cached: boolean;
+  stale: boolean;
+  regen_count: number;
+};

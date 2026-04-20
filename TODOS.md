@@ -4,13 +4,55 @@ Use this file for deferred work that should survive across sessions. Group items
 
 ## Miniapp
 
-No open TODOs.
+### Multi-Week Weekly Browsing
+
+**Priority:** P3
+
+**What:** Add a "previous weeks" view to the history page (`pkg_history`) showing past weekly summaries (cached `AuditResult` rows with `audit_type="miniapp_weekly"`).
+
+**Why:** Users can currently only access the most recent week's summary via the day-page banner. Past weeks are invisible even if they were generated and cached.
+
+**Pros:** Closes the "memory" loop — users can look back months later. Reuses existing `AuditResult` cache.
+
+**Cons:** Requires a new history list endpoint, new UI section, and handling gaps (weeks with no summary).
+
+**Effort:** M → with CC+gstack: ~30 min.
+
+**Depends on:** Weekly feature (week_function branch) shipped first.
+
+---
+
+### Monday Push Reminder
+
+**Priority:** P2
+
+**What:** Send a WeChat service message on Monday morning when the prior week has ≥3 completed entries and no weekly summary has been generated yet.
+
+**Why:** Without a push, users only see the weekly banner if they open the app on today's date. Most users will miss it entirely.
+
+**Pros:** Dramatically increases weekly summary engagement; completes the "trigger → generate → share" loop.
+
+**Cons:** Requires WeChat service message subscription (user must opt in via Mini Program); platform review process; backend cron scheduler.
+
+**Effort:** L → with CC+gstack: ~1 hour.
+
+**Depends on:** Weekly feature shipped; WeChat service message subscription registered.
 
 ## Backend
 
 No open TODOs.
 
 ## Completed
+
+### Weekly Things (上个礼拜的事体)
+
+**Priority:** P1
+
+**Completed:** v0.1.2.0 (2026-04-19)
+
+今日页底部显示"上个礼拜"提示卡；新的周报详情页用 AI 整理主要事体、还要记得、可发家人文字；`重新理一理` 按钮支持最多 5 次；新增/修改/删除条目后周报自动标为过期；LLM 开场白生成含超时降级；今日页去掉分享卡片按钮。
+
+---
 
 ### Miniapp Day Date Navigation
 

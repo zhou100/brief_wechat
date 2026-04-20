@@ -117,7 +117,14 @@
     <text class="muted">讲一段以后，这里会按“办事体、买汰烧、照顾家人、还要做”等分类放好。</text>
   </view>
 
-  <view wx:if="{{contentCount > 0}}" class="share-area">
-    <button class="primary-action" open-type="share" bindtap="prepareShare">发给家人</button>
+  <view wx:if="{{weeklySuggestion}}" class="weekly-note stack">
+    <view class="weekly-note-top">
+      <text class="red-stamp">上个礼拜</text>
+      <button class="weekly-dismiss" aria-label="这礼拜不提醒" bindtap="dismissWeeklyThings">×</button>
+    </view>
+    <text class="section-title">要不要理一理上个礼拜的事体？</text>
+    <text class="muted">我帮你把讲过的话放在一张纸上。</text>
+    <button class="weekly-action" bindtap="openWeeklyThings">帮我理一理</button>
   </view>
+
 </view>
