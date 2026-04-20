@@ -1,6 +1,70 @@
-<view class="page stack">
-  <text class="title">{{weekKey}}</text>
-  <view class="panel">
-    <text class="muted">这里展示结构化周报和可分享卡片。</text>
+<view class="page page-shell weekly-page stack">
+  <view wx:if="{{loading}}" class="paper-panel stack">
+    <text class="red-stamp">正在理</text>
+    <text class="title">正在翻一翻上个礼拜讲过的话</text>
+    <text class="muted">等一等，理好了就给你看。</text>
+  </view>
+
+  <view wx:elif="{{errorText}}" class="paper-panel stack">
+    <text class="red-stamp">没理好</text>
+    <text class="title">这张小结暂时打不开</text>
+    <text class="muted">{{errorText}}</text>
+    <button class="secondary-action" bindtap="goRecord">再讲一段</button>
+  </view>
+
+  <view wx:else class="weekly-paper stack">
+    <text class="red-stamp">已理好</text>
+    <text class="title">{{summary.title}}</text>
+    <text class="muted">{{summary.date_range}}</text>
+    <text wx:if="{{summary.stale}}" class="muted stale-hint">讲过新的以后，可以重新理一理</text>
+
+    <view class="opening-note">
+      <text>{{summary.opening}}</text>
+    </view>
+
+    <view class="weekly-section stack">
+      <text class="section-title">主要几件事</text>
+      <block wx:for="{{summary.main_things}}" wx:key="title" wx:for-item="thing" wx:for-index="index">
+        <view class="thing-line">
+          <text class="thing-index">{{index + 1}}</text>
+          <view class="thing-copy">
+            <text class="thing-title">{{thing.title}}</text>
+            <text class="thing-body">{{thing.body}}</text>
+          </view>
+        </view>
+      </block>
+    </view>
+
+    <view wx:if="{{summary.remember_items.length > 0}}" class="remember-section stack">
+      <text class="section-title">还要记得</text>
+      <block wx:for="{{summary.remember_items}}" wx:key="*this" wx:for-item="item">
+        <view class="remember-line">
+          <text class="check-box">□</text>
+          <text class="remember-text">{{item}}</text>
+        </view>
+      </block>
+    </view>
+
+    <view class="share-copy stack">
+      <text class="section-title">可以发给屋里人</text>
+      <text class="share-text">{{summary.family_share_text}}</text>
+    </view>
+
+    <view class="qing-note next-note">
+      <text class="section-title">下个礼拜记一件事</text>
+      <text>{{summary.next_week_nudge}}</text>
+    </view>
+
+    <view class="bottom-actions">
+      <button class="primary-action" open-type="share">发给屋里人看看</button>
+      <button
+        wx:if="{{summary.stale}}"
+        class="secondary-action"
+        loading="{{regenLoading}}"
+        disabled="{{regenDisabled || regenLoading}}"
+        bindtap="regen"
+      >{{regenDisabled ? '今礼拜理好几次了' : regenLoading ? '正在重新理' : '重新理一理'}}</button>
+      <button class="secondary-action" bindtap="goRecord">再讲一段</button>
+    </view>
   </view>
 </view>
