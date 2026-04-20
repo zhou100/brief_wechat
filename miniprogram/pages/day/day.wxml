@@ -57,7 +57,10 @@
 
   <view wx:if="{{viewMode === 'category' && categoryGroups.length > 0}}" class="stack">
     <view class="result-intro stack">
-      <text class="section-title">整理好了</text>
+      <view class="result-intro-row">
+        <text class="section-title">整理好了</text>
+        <button class="reclassify-btn {{reclassifying ? 'disabled' : ''}}" loading="{{reclassifying}}" disabled="{{reclassifying}}" bindtap="reclassify">重新分类</button>
+      </view>
       <text class="muted">已做的归档，还要做的单独放。</text>
     </view>
     <block wx:for="{{categoryGroups}}" wx:key="category" wx:for-item="group">

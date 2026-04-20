@@ -141,7 +141,7 @@ async def _process_job(db: AsyncSession, job: Job) -> None:
                 extracted_text=item.get("text"),
                 estimated_minutes=est_min_val,
                 display_order=i,
-                model_version=settings.MOONSHOT_MODEL,
+                model_version=item.get("model") or settings.CLASSIFICATION_MODEL,
             )
             db.add(classification)
 

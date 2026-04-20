@@ -19,8 +19,20 @@ class Settings(BaseSettings):
     TEST_DATABASE_URL: str = "sqlite+aiosqlite:///./test.db"
     DB_ECHO: bool = False           # Never True in production
 
-    # ── OpenAI ───────────────────────────────────────────────────────────────
+    # ── OpenAI-compatible LLMs ───────────────────────────────────────────────
     OPENAI_API_KEY: str = "dummy"
+    TOKENHUB_API_KEY: str = ""
+    TOKENHUB_BASE_URL: str = "https://tokenhub.tencentmaas.com/v1"
+    LLM_API_KEY: str = ""
+    LLM_BASE_URL: str = ""
+    LLM_MODEL: str = "deepseek-v3.2"
+    CLASSIFICATION_MODEL: str = "deepseek-v3.2"
+    CLASSIFICATION_FALLBACK_MODEL: str = "hunyuan-2.0-instruct-20251111"
+    CLASSIFICATION_TEMPERATURE: float = 0.2
+    CLASSIFICATION_TIMEOUT_SECONDS: float = 20.0
+
+    # Legacy Moonshot/Kimi settings. Kept so old environments still boot, but
+    # TokenHub is the default LLM provider now.
     MOONSHOT_API_KEY: str = ""
     MOONSHOT_BASE_URL: str = "https://api.moonshot.cn/v1"
     MOONSHOT_MODEL: str = "kimi-k2.5"

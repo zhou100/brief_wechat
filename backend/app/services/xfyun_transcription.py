@@ -46,7 +46,7 @@ async def transcribe_audio(audio_bytes: bytes, suffix: str = ".mp3") -> str:
                 if result.get("text"):
                     _merge_result(fragments, _decode_result_text(result["text"]))
 
-                if int(header.get("status", result.get("status", 0))) == 2:
+                if int(header.get("status", 0)) == 2:
                     break
         finally:
             await sender
@@ -106,7 +106,7 @@ def _request_frame(chunk: bytes, seq: int, status: int) -> dict:
                 "language": "zh_cn",
                 "accent": "mulacc",
                 "domain": "slm",
-                "eos": 1800,
+                "eos": 5000,
                 "ptt": 1,
                 "nunum": 1,
                 "result": {"encoding": "utf8", "compress": "raw", "format": "json"},

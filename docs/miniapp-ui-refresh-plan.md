@@ -49,7 +49,7 @@ MP3 16k recording
   -> backend download
   -> ffmpeg PCM conversion
   -> iFlytek transcription
-  -> Kimi summarization
+  -> TokenHub LLM summarization
 ```
 
 ## What Already Exists
@@ -348,7 +348,7 @@ Real iOS device:
 
 1. Record 5-10 seconds using default MP3 16k.
 2. Confirm upload succeeds.
-3. Confirm transcription and Kimi summary succeed.
+3. Confirm transcription and LLM summary succeed.
 4. Confirm `发给家人` opens WeChat share.
 5. Confirm no English labels or raw technical errors appear in the happy path.
 

@@ -176,6 +176,10 @@ export function createWeeklySummary(token: string, weekStart: string): Promise<W
   });
 }
 
+export function reclassifyDay(token: string, date: string): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>(`/miniapp/daily/${date}/reclassify`, { method: "POST", token });
+}
+
 export function regenWeeklySummary(token: string, weekStart: string): Promise<WeeklySummary> {
   return request<WeeklySummary, { week_start: string; force: boolean }>("/miniapp/weekly", {
     method: "POST",
