@@ -14,6 +14,9 @@ import type {
 
 let pollCount = 0;
 let lastEntryId = "mock-entry-1";
+let mockTranscript = "今天小程序跑通了，但是结果页太像单条摘要。";
+let mockTidied = true;
+let mockEntryDeleted = false;
 
 export function mockRequest<TResponse, TBody = unknown>(
   path: string,
@@ -59,10 +62,27 @@ function route<TResponse, TBody>(
   if (path === "/miniapp/entries" && options.method === "POST") {
     pollCount = 0;
     lastEntryId = `mock-entry-${Date.now()}`;
+    mockTranscript = "刚才这段已经先记下来了。";
+    mockTidied = false;
+    mockEntryDeleted = false;
     return {
       entry_id: lastEntryId,
       job_id: "mock-job-1",
     } satisfies EntryCreateResponse as TResponse;
+  }
+
+  if (path.startsWith("/miniapp/entries/") && options.method === "POST" && !path.endsWith("/regenerate")) {
+    const body = options.data as { transcript?: string } | undefined;
+    mockTranscript = (body?.transcript || "").trim() || mockTranscript;
+    mockTidied = false;
+    mockEntryDeleted = false;
+    return { ok: true } as TResponse;
+  }
+
+  if (path.startsWith("/miniapp/entries/") && options.method === "DELETE") {
+    mockEntryDeleted = true;
+    mockTidied = false;
+    return undefined as TResponse;
   }
 
   if (path.startsWith("/miniapp/jobs/")) {
@@ -78,6 +98,11 @@ function route<TResponse, TBody>(
         summary: "今天的重点已经整理清爽了。",
       },
     } satisfies JobResponse as TResponse;
+  }
+
+  if (path.startsWith("/miniapp/daily/") && path.endsWith("/reclassify")) {
+    mockTidied = true;
+    return { ok: true } as TResponse;
   }
 
   if (path.endsWith("/result") || path.startsWith("/miniapp/daily/")) {
@@ -179,38 +204,48 @@ function mockWeeklySummary(weekStart: string): WeeklySummary {
 
 function mockBrief(): DailyBrief {
   const createdAt = new Date().toISOString();
+  const categories = mockTidied
+    ? [
+        { text: "微信小程序录音上传处理结果页面已经跑通", category: "EARNING" as const },
+        { text: "结果页太像单条摘要，需要改成今日整理", category: "REFLECTION" as const },
+        { text: "早上买菜、汰菜、烧了两个菜", category: "MAITAISHAO" as const },
+      ]
+    : [];
+  const entries = mockEntryDeleted
+    ? []
+    : [
+        {
+          id: lastEntryId,
+          transcript: mockTranscript,
+          local_date: new Date().toISOString().slice(0, 10),
+          created_at: createdAt,
+          duration_seconds: 18,
+          categories,
+        },
+      ];
   return {
-    entry_id: lastEntryId,
-    result_id: "mock-result-1",
-    cloud_file_id: "cloud://mock-env/mock-bucket/raw_audio/mock/latest.mp3",
+    entry_id: mockEntryDeleted ? "" : lastEntryId,
+    result_id: mockEntryDeleted ? undefined : "mock-result-1",
+    cloud_file_id: mockEntryDeleted ? undefined : "cloud://mock-env/mock-bucket/raw_audio/mock/latest.mp3",
     date: new Date().toISOString().slice(0, 10),
     created_at: createdAt,
-    summary: "今天主要讲了这些事。",
-    key_points: [
-      "微信小程序录音、上传、处理和结果页面已经跑通。",
-      "默认录音格式固定为 MP3 16k。",
-      "结果页应该按一天来整理，不只看单段录音。",
-      "早上买菜、汰菜、烧了两个菜。",
-    ],
-    open_loops: [
-      "把结果页改成今日清爽。",
-      "把分类逻辑展示出来。",
-    ],
-    entries: [
-      {
-        id: lastEntryId,
-        transcript: "今天小程序跑通了，但是结果页太像单条摘要。",
-        local_date: new Date().toISOString().slice(0, 10),
-        created_at: createdAt,
-        duration_seconds: 18,
-        categories: [
-          { text: "微信小程序录音上传处理结果页面已经跑通", category: "EARNING" },
-          { text: "结果页太像单条摘要，需要改成今日整理", category: "REFLECTION" },
-          { text: "早上买菜、汰菜、烧了两个菜", category: "MAITAISHAO" },
-        ],
-      },
-    ],
-    category_groups: [
+    summary: mockTidied ? "今天主要讲了这些事。" : mockTranscript,
+    key_points: mockTidied
+      ? [
+          "微信小程序录音、上传、处理和结果页面已经跑通。",
+          "默认录音格式固定为 MP3 16k。",
+          "结果页应该按一天来整理，不只看单段录音。",
+          "早上买菜、汰菜、烧了两个菜。",
+        ]
+      : [],
+    open_loops: mockTidied
+      ? [
+          "把结果页改成今日清爽。",
+          "把分类逻辑展示出来。",
+        ]
+      : [],
+    entries,
+    category_groups: mockTidied && !mockEntryDeleted ? [
       {
         category: "EARNING",
         label: "办事体",
@@ -240,6 +275,6 @@ function mockBrief(): DailyBrief {
           { text: "单条录音摘要太单薄，应该按每天累积", category: "REFLECTION" },
         ],
       },
-    ],
+    ] : [],
   };
 }

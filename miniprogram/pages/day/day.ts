@@ -2,6 +2,7 @@ import type { BriefApp } from "../../app";
 import { JOB_POLL_INTERVAL_MS } from "../../env";
 import { RECORDING_PRESETS, startRecording, stopRecording } from "../../services/recorder";
 import {
+  deleteEntry,
   deleteItem,
   getDailyBrief,
   getEntryResult,
@@ -9,6 +10,7 @@ import {
   getWeeklySuggestion,
   submitRecordedEntry,
   tidyDay,
+  updateEntryTranscript,
   updateItemText,
 } from "../../services/entries";
 import type { CategoryGroup, HistoryItem, WeeklySuggestion } from "../../types/api";
@@ -46,6 +48,8 @@ Page({
     errorText: "",
     editingItemId: "",
     editDraft: "",
+    editingEntryId: "",
+    entryEditDraft: "",
     tidying: false,
     hasUntidiedTranscripts: false,
     viewMode: "category" as "category" | "timeline",
@@ -132,6 +136,8 @@ Page({
       errorText: "",
       editingItemId: "",
       editDraft: "",
+      editingEntryId: "",
+      entryEditDraft: "",
       viewMode: "category",
       weeklySuggestion: null,
       ...dateViewState(nextDate, today),
@@ -361,6 +367,9 @@ Page({
       const token = await app.ensureLogin();
       await tidyDay(token, date);
       await this.load(this.data.entryId, date);
+      if (this.data.categoryGroups.length > 0) {
+        this.setData({ viewMode: "category" });
+      }
       wx.showToast({ title: "整理好了", icon: "success" });
     } catch (error) {
       wx.showToast({ title: "没整理成功，请再试", icon: "none" });
@@ -381,6 +390,20 @@ Page({
 
   cancelEdit() {
     this.setData({ editingItemId: "", editDraft: "" });
+  },
+
+  startEntryEdit(event: WechatMiniprogram.TouchEvent) {
+    const { entryId, transcript } = event.currentTarget.dataset as { entryId?: string; transcript?: string };
+    if (!entryId) return;
+    this.setData({ editingEntryId: entryId, entryEditDraft: transcript || "" });
+  },
+
+  updateEntryEditDraft(event: WechatMiniprogram.Input) {
+    this.setData({ entryEditDraft: event.detail.value });
+  },
+
+  cancelEntryEdit() {
+    this.setData({ editingEntryId: "", entryEditDraft: "" });
   },
 
   showCategoryView() {
@@ -404,6 +427,25 @@ Page({
     }
   },
 
+  async saveEntryEdit(event: WechatMiniprogram.TouchEvent) {
+    const { entryId } = event.currentTarget.dataset as { entryId?: string };
+    if (!entryId) return;
+    const transcript = this.data.entryEditDraft.trim();
+    if (!transcript) {
+      wx.showToast({ title: "原话不能为空", icon: "none" });
+      return;
+    }
+    try {
+      const token = await app.ensureLogin();
+      await updateEntryTranscript(token, entryId, transcript);
+      this.setData({ editingEntryId: "", entryEditDraft: "" });
+      await this.load(this.data.entryId, this.data.date || todayLocalDate());
+      wx.showToast({ title: "原话改好了", icon: "success" });
+    } catch (error) {
+      wx.showToast({ title: "原话没改成功", icon: "none" });
+    }
+  },
+
   deleteThing(event: WechatMiniprogram.TouchEvent) {
     const { itemId } = event.currentTarget.dataset as { itemId?: string };
     if (!itemId) return;
@@ -419,6 +461,27 @@ Page({
           await this.load(this.data.entryId, this.data.date || todayLocalDate());
         } catch (error) {
           wx.showToast({ title: "没删成功", icon: "none" });
+        }
+      },
+    });
+  },
+
+  deleteEntryTranscript(event: WechatMiniprogram.TouchEvent) {
+    const { entryId } = event.currentTarget.dataset as { entryId?: string };
+    if (!entryId) return;
+    wx.showModal({
+      title: "删掉这段原话？",
+      content: "会删掉这段录音、原话和已整理出的内容。",
+      confirmText: "删除",
+      success: async (res) => {
+        if (!res.confirm) return;
+        try {
+          const token = await app.ensureLogin();
+          await deleteEntry(token, entryId);
+          await this.load("", this.data.date || todayLocalDate());
+          wx.showToast({ title: "已删除", icon: "success" });
+        } catch (error) {
+          wx.showToast({ title: "没删除成功", icon: "none" });
         }
       },
     });
