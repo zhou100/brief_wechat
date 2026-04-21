@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.4.0] - 2026-04-21
+
+### Changed
+
+- Longer voice notes are preprocessed before iFlytek transcription: long silence is trimmed and audio is split into API-safe segments before the text is stitched back together.
+- CloudBase deployment docs now describe the iFlytek-only ASR setup and the tunable preprocessing settings.
+
+### Removed
+
+- Tencent ASR provider configuration and setup guidance have been removed from the backend and deployment docs.
+
 ## [0.1.3.3] - 2026-04-20
 
 ### Fixed
