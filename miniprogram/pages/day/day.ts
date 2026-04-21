@@ -7,8 +7,8 @@ import {
   getEntryResult,
   getJob,
   getWeeklySuggestion,
-  reclassifyDay,
   submitRecordedEntry,
+  tidyDay,
   updateItemText,
 } from "../../services/entries";
 import type { CategoryGroup, HistoryItem, WeeklySuggestion } from "../../types/api";
@@ -32,6 +32,7 @@ Page({
     entries: [] as HistoryItem[],
     entryCount: 0,
     contentCount: 0,
+    dayStatsText: "今天还没记内容。",
     starting: false,
     recording: false,
     stopping: false,
@@ -45,7 +46,8 @@ Page({
     errorText: "",
     editingItemId: "",
     editDraft: "",
-    reclassifying: false,
+    tidying: false,
+    hasUntidiedTranscripts: false,
     viewMode: "category" as "category" | "timeline",
     weeklySuggestion: null as WeeklySuggestion | null,
   },
@@ -81,6 +83,8 @@ Page({
       if (requestId !== this.loadRequestId) return;
       const categoryGroups = viewCategoryGroups(result.category_groups || [], result.key_points || [], result.open_loops || []);
       const entries = result.entries || [];
+      const hasUntidiedTranscripts = entries.some((entry) => !!entry.transcript && (!entry.categories || entry.categories.length === 0));
+      const contentCount = countContent(result.category_groups || [], result.key_points || []);
       this.setData({
         entryId: result.entry_id,
         createdAt: result.created_at,
@@ -90,8 +94,10 @@ Page({
         categoryGroups,
         entries,
         entryCount: entries.length || (result.entry_id ? 1 : 0),
-        contentCount: countContent(result.category_groups || [], result.key_points || []),
-        viewMode: categoryGroups.length > 0 ? this.data.viewMode : entries.length > 0 ? "timeline" : "category",
+        contentCount,
+        dayStatsText: dayStatsText(this.data.dateLabel, entries.length || (result.entry_id ? 1 : 0), contentCount, hasUntidiedTranscripts),
+        hasUntidiedTranscripts,
+        viewMode: hasUntidiedTranscripts ? "timeline" : categoryGroups.length > 0 ? this.data.viewMode : entries.length > 0 ? "timeline" : "category",
       });
       this.loadWeeklySuggestion(token);
     } catch (error) {
@@ -121,6 +127,8 @@ Page({
       entries: [],
       entryCount: 0,
       contentCount: 0,
+      dayStatsText: `${formatDayLabel(nextDate, today)}还没记内容。`,
+      hasUntidiedTranscripts: false,
       errorText: "",
       editingItemId: "",
       editDraft: "",
@@ -214,7 +222,7 @@ Page({
       processing: true,
       dateNavDisabled: true,
       errorText: "",
-      statusText: "收到了，正在整理刚才这段。",
+      statusText: "收到了，先帮你记下来。",
     });
 
     try {
@@ -231,7 +239,7 @@ Page({
       this.setData(dateViewState(localDate, todayLocalDate()));
       wx.setStorageSync("brief_active_job_id", entry.job_id);
       this.startPolling(entry.job_id);
-      wx.showToast({ title: "正在整理", icon: "none" });
+      wx.showToast({ title: "正在记下来", icon: "none" });
     } catch (error) {
       this.recordingDate = "";
       const message = userFacingError(error, "这段没传上去，请再试一次。");
@@ -254,7 +262,7 @@ Page({
       processing: true,
       uploading: false,
       dateNavDisabled: true,
-      statusText: "正在整理刚才这段。",
+      statusText: "正在帮你记下来。",
       errorText: "",
     });
     this.pollJob();
@@ -275,7 +283,7 @@ Page({
           processing: false,
           uploading: false,
           dateNavDisabled: false,
-          statusText: `刚才这段已经放进${formatDayLabel(date, todayLocalDate())}了。`,
+          statusText: `刚才这段已经记下来，放进${formatDayLabel(date, todayLocalDate())}了。`,
           ...dateViewState(date, todayLocalDate()),
         });
         await this.load(job.entry_id || this.data.entryId, date);
@@ -296,9 +304,9 @@ Page({
         return;
       }
 
-      this.setData({ statusText: job.step?.includes("classif") ? "快好了，正在分门别类。" : "正在听懂你讲的话。" });
+      this.setData({ statusText: "正在听写，先把原话记下来。" });
     } catch (error) {
-      this.setData({ statusText: "网络有点慢，还在继续整理。" });
+      this.setData({ statusText: "网络有点慢，还在继续记下来。" });
     }
   },
 
@@ -345,19 +353,19 @@ Page({
     this.setData({ weeklySuggestion: null });
   },
 
-  async reclassify() {
-    if (this.data.reclassifying || this.data.processing) return;
+  async tidy() {
+    if (this.data.tidying || this.data.processing) return;
     const date = this.data.date || todayLocalDate();
-    this.setData({ reclassifying: true });
+    this.setData({ tidying: true, statusText: "正在帮你理清爽。" });
     try {
       const token = await app.ensureLogin();
-      await reclassifyDay(token, date);
+      await tidyDay(token, date);
       await this.load(this.data.entryId, date);
-      wx.showToast({ title: "重新分好了", icon: "success" });
+      wx.showToast({ title: "整理好了", icon: "success" });
     } catch (error) {
-      wx.showToast({ title: "重新分类失败，请再试", icon: "none" });
+      wx.showToast({ title: "没整理成功，请再试", icon: "none" });
     } finally {
-      this.setData({ reclassifying: false });
+      this.setData({ tidying: false });
     }
   },
 
@@ -526,6 +534,13 @@ function categoryHelper(category: CategoryGroup["category"]): string {
 function countContent(groups: CategoryGroup[], keyPoints: string[]): number {
   const total = groups.reduce((sum, group) => sum + group.items.length, 0);
   return total || keyPoints.length;
+}
+
+function dayStatsText(dateLabel: string, entryCount: number, contentCount: number, hasUntidiedTranscripts: boolean): string {
+  if (entryCount <= 0) return `${dateLabel}还没记内容。`;
+  if (hasUntidiedTranscripts && contentCount <= 0) return `${dateLabel}已记下 ${entryCount} 段，点一下可以理清爽。`;
+  if (hasUntidiedTranscripts) return `${dateLabel}已记下 ${entryCount} 段，还有原话可以继续理清爽。`;
+  return `${dateLabel}讲了 ${entryCount} 段，整理出 ${contentCount} 条内容。`;
 }
 
 function vibrate() {

@@ -23,6 +23,7 @@ from ..services import queue as queue_svc
 from ..services import storage as storage_svc
 from ..services.categorization import categorize_text
 from ..services.llm_client import chat_model, get_chat_client
+from ..services.transcript_refiner import refine_transcript
 from ..settings import settings
 from ..utils.auth import create_access_token, get_current_user
 
@@ -412,6 +413,9 @@ async def reclassify_day(
         if not text or not text.strip():
             continue
         try:
+            if settings.MINIAPP_TIDY_REFINE_ENABLED:
+                text = await refine_transcript(text)
+                entry.transcript = text
             cat_results = await categorize_text(text)
         except RuntimeError as exc:
             logger.warning(
@@ -1081,6 +1085,8 @@ def _job_progress(job: Job) -> int:
     if status_value == JobStatus.PROCESSING.value:
         if job.step == "transcribing":
             return 45
+        if job.step == "refining":
+            return 65
         if job.step == "classifying":
             return 75
         return 35

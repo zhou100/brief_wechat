@@ -141,17 +141,18 @@ async def test_reclassify_day_replaces_items_with_model_version(app):
     _override_auth(app)
     _override_db(app, db)
 
-    with patch(
-        "app.routes.miniapp.categorize_text",
-        AsyncMock(return_value=[
-            {
-                "text": "出门买菜做饭",
-                "category": "MAITAISHAO",
-                "estimated_minutes": None,
-                "model": "deepseek-v3.2",
-            }
-        ]),
-    ):
+    with patch("app.routes.miniapp.refine_transcript", AsyncMock(return_value=entry.transcript)), \
+         patch(
+             "app.routes.miniapp.categorize_text",
+             AsyncMock(return_value=[
+                 {
+                     "text": "出门买菜做饭",
+                     "category": "MAITAISHAO",
+                     "estimated_minutes": None,
+                     "model": "deepseek-v3.2",
+                 }
+             ]),
+         ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             resp = await client.post("/miniapp/daily/2026-04-18/reclassify")
 
@@ -204,10 +205,11 @@ async def test_reclassify_day_returns_503_when_classifier_unavailable(app):
     _override_auth(app)
     _override_db(app, db)
 
-    with patch(
-        "app.routes.miniapp.categorize_text",
-        AsyncMock(side_effect=RuntimeError("classification_api_failed: upstream timeout")),
-    ):
+    with patch("app.routes.miniapp.refine_transcript", AsyncMock(return_value=entry.transcript)), \
+         patch(
+             "app.routes.miniapp.categorize_text",
+             AsyncMock(side_effect=RuntimeError("classification_api_failed: upstream timeout")),
+         ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             resp = await client.post("/miniapp/daily/2026-04-18/reclassify")
 

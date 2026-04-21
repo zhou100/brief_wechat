@@ -7,8 +7,8 @@
 
   <view class="bottom-actions">
     <button wx:if="{{!recording && !uploading}}" class="primary-action" bindtap="start">开始讲</button>
-    <button wx:elif="{{recording}}" class="primary-action" bindtap="stop">讲好了，帮我整理</button>
-    <button wx:else class="secondary-action" loading="true">正在送去整理</button>
+    <button wx:elif="{{recording}}" class="primary-action" bindtap="stop">讲好了，先记下来</button>
+    <button wx:else class="secondary-action" loading="true">正在记下来</button>
 
     <button wx:if="{{lastFilePath && !uploading}}" class="secondary-action" bindtap="retryUpload">重试上传</button>
   </view>
@@ -27,6 +27,6 @@
   </view>
 
   <view class="panel qing-note">
-    <text class="helper-text">不需要想格式，像平时讲话一样。录完后会自动整理。</text>
+    <text class="helper-text">不需要想格式，像平时讲话一样。录完后先保留原话，需要时再理清爽。</text>
   </view>
 </view>
