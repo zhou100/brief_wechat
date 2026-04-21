@@ -1,8 +1,8 @@
 """
-Unit tests for the worker's multi-entry classification loop.
+Unit tests for the worker's audio transcription loop.
 
-All I/O (OpenAI, storage, DB) is mocked.
-Tests focus on the classification insertion loop and stale-job recovery.
+All I/O (storage, transcription, DB) is mocked. Tests focus on the fast
+transcript-save path and stale-job recovery.
 """
 import uuid
 import pytest
@@ -11,16 +11,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.models.jobs import Job, JobStatus
 from app.models.entry import Entry
-from app.models.classification import EntryClassification
 
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _make_entry(user_id=1, transcript="test transcript"):
     e = MagicMock(spec=Entry)
     e.id = uuid.uuid4()
     e.user_id = user_id
     e.raw_audio_key = f"audio/{user_id}/test.webm"
+    e.raw_audio_download_url = None
     e.transcript = transcript
     e.duration_seconds = 60
     return e
@@ -34,8 +32,7 @@ def _make_job(entry_id=None):
     return j
 
 
-def _standard_patches(cat_results):
-    """Return a dict of patches common to all _process_job tests."""
+def _standard_patches():
     return {
         "app.services.worker.queue_svc": MagicMock(
             mark_step=AsyncMock(),
@@ -45,8 +42,6 @@ def _standard_patches(cat_results):
         "app.services.worker.storage_svc": MagicMock(
             download_bytes=AsyncMock(return_value=b"fake audio bytes"),
         ),
-        "app.services.worker.categorize_text": AsyncMock(return_value=cat_results),
-        "app.services.worker.refine_transcript": AsyncMock(return_value="refined transcript"),
         "app.services.worker.transcribe_audio": AsyncMock(return_value="some transcript"),
     }
 
@@ -55,84 +50,56 @@ def _mock_db(entry):
     db = AsyncMock()
     db.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=entry)))
     db.added = []
-    original_add = db.add
     db.add = lambda obj: db.added.append(obj)
     db.flush = AsyncMock()
     db.commit = AsyncMock()
     return db
 
 
-async def _run_process_job(db, job, cat_results):
-    patches = _standard_patches(cat_results)
+async def _run_process_job(db, job):
+    patches = _standard_patches()
     with patch("app.services.worker.queue_svc", patches["app.services.worker.queue_svc"]), \
          patch("app.services.worker.storage_svc", patches["app.services.worker.storage_svc"]), \
-         patch("app.services.worker.categorize_text", patches["app.services.worker.categorize_text"]), \
-         patch("app.services.worker.refine_transcript", patches["app.services.worker.refine_transcript"]), \
          patch("app.services.worker.transcribe_audio", patches["app.services.worker.transcribe_audio"]):
         from app.services.worker import _process_job
         await _process_job(db, job)
 
 
-# ── Classification loop: correct number of rows ───────────────────────────────
-
 @pytest.mark.asyncio
-async def test_three_item_result_inserts_three_rows():
-    """3-item categorization result → 3 EntryClassification rows added to db."""
-    cat_results = [
-        {"text": "Worked on dashboard", "category": "EARNING"},
-        {"text": "Add voice replay experiment", "category": "EXPERIMENT"},
-        {"text": "Write auth tests", "category": "TODO"},
-    ]
-
+async def test_worker_saves_transcript_without_classifying():
     entry = _make_entry()
     job = _make_job(entry_id=entry.id)
     db = _mock_db(entry)
 
-    await _run_process_job(db, job, cat_results)
+    await _run_process_job(db, job)
 
-    classification_rows = [o for o in db.added if isinstance(o, EntryClassification)]
-    assert len(classification_rows) == 3
+    assert entry.transcript == "some transcript"
+    assert not [obj for obj in db.added if obj.__class__.__name__ == "EntryClassification"]
 
 
 @pytest.mark.asyncio
-async def test_display_order_is_sequential():
-    """display_order values are 0, 1, 2 — not all 0."""
-    cat_results = [
-        {"text": "First", "category": "TODO"},
-        {"text": "Second", "category": "EXPERIMENT"},
-        {"text": "Third", "category": "REFLECTION"},
-    ]
-
+async def test_worker_completes_job_after_transcription():
     entry = _make_entry()
     job = _make_job(entry_id=entry.id)
     db = _mock_db(entry)
 
-    await _run_process_job(db, job, cat_results)
+    await _run_process_job(db, job)
 
-    rows = [o for o in db.added if isinstance(o, EntryClassification)]
-    assert [r.display_order for r in rows] == [0, 1, 2]
+    db.commit.assert_awaited()
 
 
 @pytest.mark.asyncio
-async def test_empty_categorization_fallback_inserts_one_reflection():
-    """
-    Fallback from categorize_text already returns [{"text": ..., "category": "REFLECTION"}],
-    so the worker inserts exactly 1 row with category REFLECTION.
-    """
-    fallback = [{"text": "full transcript text", "category": "REFLECTION"}]
-
-    entry = _make_entry(transcript="full transcript text")
+async def test_worker_notification_reports_transcribed_entry():
+    entry = _make_entry()
     job = _make_job(entry_id=entry.id)
     db = _mock_db(entry)
 
-    await _run_process_job(db, job, fallback)
+    await _run_process_job(db, job)
 
-    rows = [o for o in db.added if isinstance(o, EntryClassification)]
-    assert len(rows) == 1
-    assert rows[0].category == "REFLECTION"
+    notifications = [obj for obj in db.added if obj.__class__.__name__ == "Notification"]
+    assert notifications
+    assert notifications[-1].event_type == "entry.transcribed"
 
-
-# ── Stale-job recovery ────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
 async def test_stale_job_recovery_fails_old_jobs():
