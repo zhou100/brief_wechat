@@ -9,6 +9,7 @@ backend/.venv/
 backend/.pytest_cache/
 backend/**/__pycache__/
 backend/**/*.pyc
+backend/asr_side_by_side_results/
 .env
 .env.*
 !.env.example

@@ -50,6 +50,11 @@ Set these in CloudBase Run service settings.
 | `XFYUN_API_KEY` | Your iFlytek API key |
 | `XFYUN_API_SECRET` | Your iFlytek API secret |
 | `XFYUN_IAT_URL` | `wss://iat.cn-huabei-1.xf-yun.com/v1` |
+| `XFYUN_EOS_MS` | `5000` |
+| `XFYUN_MAX_SEGMENT_SECONDS` | `55` |
+| `XFYUN_SILENCE_RMS_THRESHOLD` | `200` |
+| `XFYUN_SILENCE_SPLIT_SECONDS` | `1.2` |
+| `XFYUN_KEEP_SILENCE_SECONDS` | `0.25` |
 | `ALLOWED_ORIGINS_STR` | `*` |
 
 Example:

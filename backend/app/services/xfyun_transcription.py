@@ -3,6 +3,7 @@ Speech-to-text via iFlytek Spark SLM IAT.
 
 Docs: https://www.xfyun.cn/doc/spark/spark_slm_iat.html
 """
+import audioop
 import asyncio
 import base64
 import hashlib
@@ -20,8 +21,12 @@ import websockets
 
 from ..settings import settings
 
-_FRAME_SIZE = 8192
+_FRAME_SIZE = 1280
 _FRAME_INTERVAL_SECONDS = 0.04
+_SAMPLE_RATE = 16000
+_SAMPLE_WIDTH_BYTES = 2
+_CHANNELS = 1
+_ANALYSIS_FRAME_MS = 20
 
 
 async def transcribe_audio(audio_bytes: bytes, suffix: str = ".mp3") -> str:
@@ -31,6 +36,20 @@ async def transcribe_audio(audio_bytes: bytes, suffix: str = ".mp3") -> str:
         return ""
 
     pcm_bytes = _convert_to_pcm16k(audio_bytes, suffix)
+    segments = _prepare_segments(pcm_bytes)
+    if not segments:
+        return ""
+
+    transcripts = []
+    for segment in segments:
+        text = await _transcribe_pcm_segment(segment)
+        if text:
+            transcripts.append(text)
+
+    return "\n".join(transcripts).strip()
+
+
+async def _transcribe_pcm_segment(pcm_bytes: bytes) -> str:
     fragments: Dict[int, str] = {}
     async with websockets.connect(_build_auth_url(settings.XFYUN_IAT_URL), max_size=16 * 1024 * 1024) as ws:
         sender = asyncio.create_task(_send_audio(ws, pcm_bytes))
@@ -106,7 +125,7 @@ def _request_frame(chunk: bytes, seq: int, status: int) -> dict:
                 "language": "zh_cn",
                 "accent": "mulacc",
                 "domain": "slm",
-                "eos": 5000,
+                "eos": settings.XFYUN_EOS_MS,
                 "ptt": 1,
                 "nunum": 1,
                 "result": {"encoding": "utf8", "compress": "raw", "format": "json"},
@@ -144,6 +163,98 @@ def _merge_result(fragments: Dict[int, str], result: dict) -> None:
     )
     if text:
         fragments[sn] = text
+
+
+def _prepare_segments(pcm_bytes: bytes) -> list[bytes]:
+    """Remove long silence and pack speech chunks into API-safe segments."""
+    chunks = _speech_chunks(pcm_bytes)
+    max_bytes = _seconds_to_bytes(settings.XFYUN_MAX_SEGMENT_SECONDS)
+    if not chunks:
+        return _split_oversized_chunk(pcm_bytes, max_bytes) if pcm_bytes else []
+
+    if max_bytes <= 0:
+        return [b"".join(chunks)]
+
+    segments = []
+    current = bytearray()
+    for chunk in chunks:
+        if len(chunk) > max_bytes:
+            if current:
+                segments.append(bytes(current))
+                current.clear()
+            segments.extend(_split_oversized_chunk(chunk, max_bytes))
+            continue
+
+        if current and len(current) + len(chunk) > max_bytes:
+            segments.append(bytes(current))
+            current.clear()
+        current.extend(chunk)
+
+    if current:
+        segments.append(bytes(current))
+    return segments
+
+
+def _split_oversized_chunk(chunk: bytes, max_bytes: int) -> list[bytes]:
+    if not chunk:
+        return []
+    if max_bytes <= 0:
+        return [chunk]
+    return [
+        chunk[offset:offset + max_bytes]
+        for offset in range(0, len(chunk), max_bytes)
+        if chunk[offset:offset + max_bytes]
+    ]
+
+
+def _remove_long_silence(pcm_bytes: bytes) -> bytes:
+    chunks = _speech_chunks(pcm_bytes)
+    if not chunks:
+        return b""
+    return b"".join(chunks)
+
+
+def _speech_chunks(pcm_bytes: bytes) -> list[bytes]:
+    if not pcm_bytes:
+        return []
+
+    frame_bytes = _seconds_to_bytes(_ANALYSIS_FRAME_MS / 1000)
+    if frame_bytes <= 0:
+        return [pcm_bytes]
+
+    ranges = []
+    for start in range(0, len(pcm_bytes), frame_bytes):
+        frame = pcm_bytes[start:start + frame_bytes]
+        if len(frame) < _SAMPLE_WIDTH_BYTES:
+            continue
+        if audioop.rms(frame, _SAMPLE_WIDTH_BYTES) > settings.XFYUN_SILENCE_RMS_THRESHOLD:
+            ranges.append((start, min(start + len(frame), len(pcm_bytes))))
+
+    if not ranges:
+        return []
+
+    split_gap_bytes = _seconds_to_bytes(settings.XFYUN_SILENCE_SPLIT_SECONDS)
+    merged = []
+    for start, end in ranges:
+        if not merged or start - merged[-1][1] > split_gap_bytes:
+            merged.append([start, end])
+        else:
+            merged[-1][1] = max(merged[-1][1], end)
+
+    keep_bytes = _seconds_to_bytes(settings.XFYUN_KEEP_SILENCE_SECONDS)
+    expanded = [
+        (
+            max(0, start - keep_bytes),
+            min(len(pcm_bytes), end + keep_bytes),
+        )
+        for start, end in merged
+    ]
+    return [pcm_bytes[start:end] for start, end in expanded]
+
+
+def _seconds_to_bytes(seconds: float) -> int:
+    samples = max(0, int(seconds * _SAMPLE_RATE))
+    return samples * _SAMPLE_WIDTH_BYTES * _CHANNELS
 
 
 def _convert_to_pcm16k(audio_bytes: bytes, suffix: str) -> bytes:

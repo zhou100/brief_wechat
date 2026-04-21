@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     XFYUN_API_KEY: str = ""
     XFYUN_API_SECRET: str = ""
     XFYUN_IAT_URL: str = "wss://iat.cn-huabei-1.xf-yun.com/v1"
+    XFYUN_EOS_MS: int = 5000
+    XFYUN_MAX_SEGMENT_SECONDS: float = 55.0
+    XFYUN_SILENCE_RMS_THRESHOLD: int = 200
+    XFYUN_SILENCE_SPLIT_SECONDS: float = 1.2
+    XFYUN_KEEP_SILENCE_SECONDS: float = 0.25
 
     # ── Object Storage (Cloudflare R2 / S3-compatible) ─────────────────────────
     # R2 endpoint format: https://<ACCOUNT_ID>.r2.cloudflarestorage.com

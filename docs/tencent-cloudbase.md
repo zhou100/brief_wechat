@@ -8,7 +8,7 @@ WeChat Mini Program
   -> CloudBase Run / CloudBase Hosting domain
   -> FastAPI Docker backend
   -> CloudBase built-in MySQL
-  -> iFlytek speech-to-text + TokenHub LLM summarization pipeline
+  -> iFlytek ASR + TokenHub LLM summarization pipeline
 ```
 
 ## Why CloudBase Run
@@ -61,6 +61,11 @@ XFYUN_APP_ID=<xfyun app id>
 XFYUN_API_KEY=<xfyun api key>
 XFYUN_API_SECRET=<xfyun api secret>
 XFYUN_IAT_URL=wss://iat.cn-huabei-1.xf-yun.com/v1
+XFYUN_EOS_MS=5000
+XFYUN_MAX_SEGMENT_SECONDS=55
+XFYUN_SILENCE_RMS_THRESHOLD=200
+XFYUN_SILENCE_SPLIT_SECONDS=1.2
+XFYUN_KEEP_SILENCE_SECONDS=0.25
 
 ALLOWED_ORIGINS_STR=*
 ```
