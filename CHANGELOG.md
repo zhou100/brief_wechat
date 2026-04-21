@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.5.0] - 2026-04-21
+
+### Added
+
+- Voice notes now finish as soon as the original transcript is saved, then show an optional "一键理清爽" action for refinement and categorization.
+
+### Changed
+
+- The miniapp now presents raw transcripts first and keeps "理清爽" as a single explicit action, removing the old separate "重新分类" entry point.
+- iFlytek transcription can send frames without real-time pacing, retry with the slower 40ms pacing if the provider rejects the fast stream, and process split audio segments concurrently.
+- CloudBase deployment examples now include the new transcription pacing, segment concurrency, and on-demand tidy refinement settings.
+
+### Fixed
+
+- Days with both organized content and fresh untidied transcripts now open the transcript timeline first, so the text promised by the tidy panel is visible immediately.
+
 ## [0.1.4.0] - 2026-04-21
 
 ### Changed

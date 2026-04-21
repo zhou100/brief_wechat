@@ -82,3 +82,20 @@ def test_prepare_segments_hard_splits_single_oversized_speech_chunk(monkeypatch)
 
 def test_frame_size_matches_xfyun_pcm_send_recommendation():
     assert xfyun_transcription._FRAME_SIZE == 1280
+
+
+async def test_transcribe_segment_retries_with_fallback_interval(monkeypatch):
+    calls = []
+
+    async def fake_once(_pcm, interval):
+        calls.append(interval)
+        if len(calls) == 1:
+            raise RuntimeError("provider closed fast stream")
+        return "ok"
+
+    monkeypatch.setattr(xfyun_transcription.settings, "XFYUN_FRAME_INTERVAL_SECONDS", 0.0)
+    monkeypatch.setattr(xfyun_transcription.settings, "XFYUN_FALLBACK_FRAME_INTERVAL_SECONDS", 0.04)
+    monkeypatch.setattr(xfyun_transcription, "_transcribe_pcm_segment_once", fake_once)
+
+    assert await xfyun_transcription._transcribe_pcm_segment(b"pcm") == "ok"
+    assert calls == [0.0, 0.04]

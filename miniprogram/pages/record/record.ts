@@ -86,8 +86,8 @@ Page({
 
   async upload(filePath: string, durationMs: number, recorderOptions?: (typeof RECORDING_PRESETS)[number]) {
     const uploadOptions = recorderOptions || this.data.lastRecorderOptions;
-    this.setData({ uploading: true, statusText: "正在送去整理" });
-    wx.showLoading({ title: "正在整理" });
+    this.setData({ uploading: true, statusText: "正在先记下来" });
+    wx.showLoading({ title: "正在记下来" });
 
     try {
       const token = await app.ensureLogin();

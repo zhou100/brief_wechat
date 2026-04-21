@@ -5,7 +5,7 @@ Brief WeChat is a lightweight Mini Program client for voice capture, AI summary,
 This repo does not copy the existing React web app. It keeps `time_logger_game/` as a local ignored reference and builds a new WeChat-runtime client around the smallest useful loop:
 
 ```text
-open -> start -> record -> CloudBase upload -> backend job -> structured result -> share summary card
+open -> start -> record -> CloudBase upload -> backend job -> raw transcript -> one-tap tidy -> share summary card
 ```
 
 ## Product Scope
@@ -15,9 +15,9 @@ First version:
 - record and upload audio with CloudBase native storage
 - poll backend job status
 - show a date-scoped day page with previous/next navigation and a native date picker
-- show structured daily result:
-  - one-sentence summary
-  - 3 to 5 key points
+- show raw transcripts first, then tidy them into a structured daily result on demand:
+  - category groups
+  - key points
   - open loops
 - delete one entry
 - regenerate one entry

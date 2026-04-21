@@ -73,7 +73,7 @@ function route<TResponse, TBody>(
       local_date: new Date().toISOString().slice(0, 10),
       status: pollCount >= 8 ? "done" : "processing",
       progress: pollCount >= 8 ? 100 : Math.min(90, 20 + pollCount * 9),
-      step: pollCount >= 8 ? "整理完成" : "正在整理你的内容",
+      step: pollCount >= 8 ? "记下来了" : "正在记下来",
       result_preview: {
         summary: "今天的重点已经整理清爽了。",
       },

@@ -1,5 +1,5 @@
 import { deleteCloudFile, request, uploadAudioFile, uploadAudioFileToCloudBase } from "./api";
-import { RECLASSIFY_TIMEOUT_MS, USE_CLOUDBASE_UPLOAD } from "../env";
+import { TIDY_TIMEOUT_MS, USE_CLOUDBASE_UPLOAD } from "../env";
 import type {
   DailyBrief,
   EntryCreateResponse,
@@ -176,11 +176,11 @@ export function createWeeklySummary(token: string, weekStart: string): Promise<W
   });
 }
 
-export function reclassifyDay(token: string, date: string): Promise<{ ok: boolean }> {
+export function tidyDay(token: string, date: string): Promise<{ ok: boolean }> {
   return request<{ ok: boolean }>(`/miniapp/daily/${date}/reclassify`, {
     method: "POST",
     token,
-    timeoutMs: RECLASSIFY_TIMEOUT_MS,
+    timeoutMs: TIDY_TIMEOUT_MS,
   });
 }
 

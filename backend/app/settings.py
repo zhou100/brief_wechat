@@ -42,10 +42,19 @@ class Settings(BaseSettings):
     XFYUN_API_SECRET: str = ""
     XFYUN_IAT_URL: str = "wss://iat.cn-huabei-1.xf-yun.com/v1"
     XFYUN_EOS_MS: int = 5000
+    # The iFlytek websocket examples pace frames at 40ms, which makes a
+    # one-minute recording take at least one minute to upload for transcription.
+    # Keep this configurable so production can favor latency, while still
+    # allowing real-time pacing if the provider rate-limits a deployment.
+    XFYUN_FRAME_INTERVAL_SECONDS: float = 0.0
+    XFYUN_FALLBACK_FRAME_INTERVAL_SECONDS: float = 0.04
+    XFYUN_SEGMENT_CONCURRENCY: int = 2
     XFYUN_MAX_SEGMENT_SECONDS: float = 55.0
     XFYUN_SILENCE_RMS_THRESHOLD: int = 200
     XFYUN_SILENCE_SPLIT_SECONDS: float = 1.2
     XFYUN_KEEP_SILENCE_SECONDS: float = 0.25
+    TRANSCRIPT_REFINE_ENABLED: bool = False
+    MINIAPP_TIDY_REFINE_ENABLED: bool = True
 
     # ── Object Storage (Cloudflare R2 / S3-compatible) ─────────────────────────
     # R2 endpoint format: https://<ACCOUNT_ID>.r2.cloudflarestorage.com

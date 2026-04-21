@@ -22,7 +22,6 @@ import websockets
 from ..settings import settings
 
 _FRAME_SIZE = 1280
-_FRAME_INTERVAL_SECONDS = 0.04
 _SAMPLE_RATE = 16000
 _SAMPLE_WIDTH_BYTES = 2
 _CHANNELS = 1
@@ -40,19 +39,42 @@ async def transcribe_audio(audio_bytes: bytes, suffix: str = ".mp3") -> str:
     if not segments:
         return ""
 
-    transcripts = []
-    for segment in segments:
-        text = await _transcribe_pcm_segment(segment)
-        if text:
-            transcripts.append(text)
+    transcripts = await _transcribe_pcm_segments(segments)
+    return "\n".join(text for text in transcripts if text).strip()
 
-    return "\n".join(transcripts).strip()
+
+async def _transcribe_pcm_segments(segments: list[bytes]) -> list[str]:
+    concurrency = max(1, int(settings.XFYUN_SEGMENT_CONCURRENCY or 1))
+    if concurrency == 1 or len(segments) <= 1:
+        return [await _transcribe_pcm_segment(segment) for segment in segments]
+
+    semaphore = asyncio.Semaphore(concurrency)
+
+    async def transcribe_with_limit(segment: bytes) -> str:
+        async with semaphore:
+            return await _transcribe_pcm_segment(segment)
+
+    return await asyncio.gather(*(transcribe_with_limit(segment) for segment in segments))
 
 
 async def _transcribe_pcm_segment(pcm_bytes: bytes) -> str:
+    try:
+        return await _transcribe_pcm_segment_once(
+            pcm_bytes,
+            max(0.0, float(settings.XFYUN_FRAME_INTERVAL_SECONDS or 0.0)),
+        )
+    except Exception:
+        fallback_interval = max(0.0, float(settings.XFYUN_FALLBACK_FRAME_INTERVAL_SECONDS or 0.0))
+        primary_interval = max(0.0, float(settings.XFYUN_FRAME_INTERVAL_SECONDS or 0.0))
+        if not fallback_interval or fallback_interval <= primary_interval:
+            raise
+        return await _transcribe_pcm_segment_once(pcm_bytes, fallback_interval)
+
+
+async def _transcribe_pcm_segment_once(pcm_bytes: bytes, frame_interval: float) -> str:
     fragments: Dict[int, str] = {}
     async with websockets.connect(_build_auth_url(settings.XFYUN_IAT_URL), max_size=16 * 1024 * 1024) as ws:
-        sender = asyncio.create_task(_send_audio(ws, pcm_bytes))
+        sender = asyncio.create_task(_send_audio(ws, pcm_bytes, frame_interval))
         try:
             async for raw_message in ws:
                 message = json.loads(raw_message)
@@ -99,7 +121,7 @@ def _build_auth_url(raw_url: str) -> str:
     return f"{raw_url}?{query}"
 
 
-async def _send_audio(ws, audio_bytes: bytes) -> None:
+async def _send_audio(ws, audio_bytes: bytes, frame_interval: float) -> None:
     seq = 0
     total = len(audio_bytes)
     offset = 0
@@ -113,8 +135,8 @@ async def _send_audio(ws, audio_bytes: bytes) -> None:
 
         await ws.send(json.dumps(_request_frame(chunk, seq, status), ensure_ascii=False))
         seq += 1
-        if status != 2:
-            await asyncio.sleep(_FRAME_INTERVAL_SECONDS)
+        if status != 2 and frame_interval:
+            await asyncio.sleep(frame_interval)
 
 
 def _request_frame(chunk: bytes, seq: int, status: int) -> dict:

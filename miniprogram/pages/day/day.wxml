@@ -1,6 +1,6 @@
 <view class="page page-shell stack result-page">
   <view class="stack">
-    <text class="red-stamp">{{processing ? '整理中' : '今日'}}</text>
+    <text class="red-stamp">{{processing ? '正在记' : '今日'}}</text>
     <text class="title">今日清爽</text>
     <view class="date-nav">
       <button
@@ -30,37 +30,44 @@
       >›</button>
     </view>
     <button wx:if="{{!isToday}}" class="today-jump {{dateNavDisabled ? 'disabled' : ''}}" disabled="{{dateNavDisabled}}" bindtap="goToday">回到今天</button>
-    <text class="muted">{{dateLabel}}讲了 {{entryCount}} 段，整理出 {{contentCount}} 条内容。</text>
+    <text class="muted">{{dayStatsText}}</text>
   </view>
 
   <view wx:if="{{entryCount == 0 && !recording && !starting && !stopping && !uploading && !processing}}" class="brand-mini stack">
     <text class="red-stamp">方言小记</text>
-    <text class="brand-title">讲过就清爽</text>
-    <text class="brand-line">有事讲两句，我帮你理清爽。</text>
+    <text class="brand-title">讲过先记下</text>
+    <text class="brand-line">先把原话留住，需要时再理清爽。</text>
     <text class="helper-text">普通话、吴语、带口音都可以。</text>
+  </view>
+
+  <view wx:if="{{hasUntidiedTranscripts && !processing}}" class="tidy-panel stack">
+    <view class="result-intro-row">
+      <view class="stack tidy-copy">
+        <text class="section-title">先记下来了</text>
+        <text class="muted">原话已经放在下面；想分门别类时，再点一下。</text>
+      </view>
+      <button class="tidy-btn {{tidying ? 'disabled' : ''}}" loading="{{tidying}}" disabled="{{tidying}}" bindtap="tidy">一键理清爽</button>
+    </view>
   </view>
 
   <view class="talk-panel stack {{recording ? 'talking' : ''}}">
     <text class="section-title">{{recording ? '正在听你讲' : '想到什么就讲两句'}}</text>
     <text class="talk-time">{{elapsedLabel}}</text>
-    <button wx:if="{{!starting && !recording && !stopping && !uploading && !processing}}" class="primary-action" bindtap="startRecord">开始讲</button>
-    <button wx:elif="{{recording}}" class="primary-action" bindtap="stopRecord">讲好了，帮我整理</button>
-    <button wx:else class="primary-action" loading="true" disabled="true">正在整理</button>
+    <button wx:if="{{!starting && !recording && !stopping && !uploading && !processing}}" class="{{hasUntidiedTranscripts ? 'secondary-action' : 'primary-action'}}" bindtap="startRecord">开始讲</button>
+    <button wx:elif="{{recording}}" class="primary-action" bindtap="stopRecord">讲好了，先记下来</button>
+    <button wx:else class="primary-action" loading="true" disabled="true">正在记下来</button>
     <text wx:if="{{statusText}}" class="helper-text">{{statusText}}</text>
     <text wx:if="{{errorText}}" class="error-text">{{errorText}}</text>
   </view>
 
-  <view wx:if="{{entryCount > 0 || contentCount > 0}}" class="view-tabs">
+  <view wx:if="{{categoryGroups.length > 0 && entries.length > 0}}" class="view-tabs">
     <button class="view-tab {{viewMode === 'category' ? 'active' : ''}}" bindtap="showCategoryView">按分类看</button>
     <button class="view-tab {{viewMode === 'timeline' ? 'active' : ''}}" bindtap="showTimelineView">按讲话顺序看</button>
   </view>
 
   <view wx:if="{{viewMode === 'category' && categoryGroups.length > 0}}" class="stack">
     <view class="result-intro stack">
-      <view class="result-intro-row">
-        <text class="section-title">整理好了</text>
-        <button class="reclassify-btn {{reclassifying ? 'disabled' : ''}}" loading="{{reclassifying}}" disabled="{{reclassifying}}" bindtap="reclassify">重新分类</button>
-      </view>
+      <text class="section-title">整理好了</text>
       <text class="muted">已做的归档，还要做的单独放。</text>
     </view>
     <block wx:for="{{categoryGroups}}" wx:key="category" wx:for-item="group">
@@ -103,8 +110,8 @@
   </view>
 
   <view wx:elif="{{viewMode === 'timeline' && entries.length > 0}}" class="panel stack">
-    <text class="section-title">按讲话顺序看</text>
-    <text class="muted">这里尽量保留原来的转写，方便你校对和回想。</text>
+    <text class="section-title">{{hasUntidiedTranscripts ? '已记下的原话' : '按讲话顺序看'}}</text>
+    <text class="muted">{{hasUntidiedTranscripts ? '先核对原话；点上面的“一键理清爽”后，我再帮你分门别类。' : '这里尽量保留原来的转写，方便你校对和回想。'}}</text>
     <block wx:for="{{entries}}" wx:key="id" wx:for-item="entry" wx:for-index="entryIndex">
       <view class="category-line timeline-entry">
         <text class="list-index">{{entryIndex + 1}}</text>
@@ -117,7 +124,7 @@
 
   <view wx:else class="panel stack">
     <text class="section-title">{{dateLabel}}还空着</text>
-    <text class="muted">讲一段以后，这里会按“办事体、买汰烧、照顾家人、还要做”等分类放好。</text>
+    <text class="muted">讲一段以后，先看到原话；需要时再按“办事体、买汰烧、照顾家人、还要做”等分类放好。</text>
   </view>
 
   <view wx:if="{{weeklySuggestion}}" class="weekly-note stack">

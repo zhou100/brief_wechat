@@ -7,7 +7,7 @@ This Mini Program is not the Web product in a new shell. It is a low-friction in
 The first version optimizes one loop:
 
 ```text
-open -> start -> record -> CloudBase upload -> backend job -> structured result -> share summary card
+open -> start -> record -> CloudBase upload -> backend job -> raw transcript -> one-tap tidy -> share summary card
 ```
 
 Everything else is secondary. No realtime transcription, no heavy editing, no charts, no complex analytics, and no direct AI calls from the client.
@@ -20,9 +20,9 @@ The Mini Program owns:
 2. Audio capture via `wx.getRecorderManager`.
 3. Audio upload via `wx.cloud.uploadFile`.
 4. Job polling and resume after leaving the app.
-5. Date-scoped day navigation and structured daily result display:
-   - summary
-   - 3 to 5 key points
+5. Date-scoped day navigation, raw transcript display, and on-demand tidy result display:
+   - category groups
+   - key points
    - open loops
 6. Delete, regenerate, and share-card actions.
 
@@ -39,8 +39,8 @@ The backend owns:
 
 - WeChat code exchange and app session token.
 - Audio validation and storage.
-- Transcription.
-- Structured AI summary generation.
+- Fast transcription.
+- On-demand transcript refinement and categorization.
 - Job status and failure handling.
 - Deletion.
 - Regeneration.

@@ -4,8 +4,8 @@ Audio processing worker.
 Runs as a separate process alongside the FastAPI server.
 Polls the jobs table, processes PENDING jobs through the pipeline:
   1. Download audio from object storage
-  2. Transcribe via OpenAI Whisper
-  3. Classify via GPT-4o-mini (multi-entry: 1 transcript → N classifications)
+  2. Transcribe via iFlytek
+  3. Save transcript
   4. Write notification row (Supabase Realtime delivers to frontend)
 
 Start with: python -m app.services.worker
@@ -14,21 +14,18 @@ import asyncio
 import json
 import logging
 import os
+import time
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import async_session
 from ..models.entry import Entry
-from ..models.classification import EntryClassification
 from ..models.jobs import Job, JobStatus
 from ..models.notification import Notification
 from ..services import queue as queue_svc
 from ..services import storage as storage_svc
-from ..services.categorization import categorize_text
-from ..services.transcript_refiner import refine_transcript
 from ..services.transcription import transcribe_audio
-from ..settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +63,7 @@ async def _recover_stale_jobs(db: AsyncSession) -> None:
 
 async def _process_job(db: AsyncSession, job: Job) -> None:
     """Run one entry through the full pipeline."""
+    job_started = time.perf_counter()
     result = await db.execute(select(Entry).where(Entry.id == job.entry_id))
     entry = result.scalar_one_or_none()
     if not entry:
@@ -78,21 +76,35 @@ async def _process_job(db: AsyncSession, job: Job) -> None:
         await db.commit()
 
         try:
+            download_started = time.perf_counter()
             audio_bytes = await storage_svc.download_bytes(
                 entry.raw_audio_key,
                 entry.raw_audio_download_url,
+            )
+            logger.info(
+                "Job %s audio downloaded: %.1f KB in %.2fs",
+                job.id,
+                len(audio_bytes) / 1024,
+                time.perf_counter() - download_started,
             )
         except Exception as exc:
             raise RuntimeError(f"audio_download_failed: {exc}") from exc
 
         suffix = os.path.splitext(entry.raw_audio_key)[1] or ".mp3"
         try:
+            transcription_started = time.perf_counter()
             raw_transcript = await transcribe_audio(
                 audio_bytes,
                 suffix,
                 source_url=entry.raw_audio_download_url,
             )
-            logger.info(f"Raw transcript ({len(raw_transcript)} chars): {raw_transcript[:120]}...")
+            logger.info(
+                "Job %s transcribed in %.2fs (%s chars): %s...",
+                job.id,
+                time.perf_counter() - transcription_started,
+                len(raw_transcript),
+                raw_transcript[:120],
+            )
         except Exception as exc:
             raise RuntimeError(f"xfyun_transcription_failed: {exc}") from exc
 
@@ -116,60 +128,28 @@ async def _process_job(db: AsyncSession, job: Job) -> None:
             await db.commit()
             return
 
-        # ── Step 1b: Refine transcript (LLM post-processing) ─────────────────
-        await queue_svc.mark_step(db, job, "refining")
-        await db.commit()
-
-        entry.transcript = await refine_transcript(raw_transcript)
+        # Keep capture fast: refinement and categorization run only when the
+        # miniapp user taps "一键理清爽".
+        entry.transcript = raw_transcript.strip()
         await db.flush()
-        logger.info(f"Refined transcript: {entry.transcript[:120]}...")
-
-        # ── Step 2: Classify (multi-entry) ───────────────────────────────────
-        await queue_svc.mark_step(db, job, "classifying")
-        await db.commit()
-
-        cat_results = await categorize_text(entry.transcript)
-
-        # Insert one EntryClassification row per extracted activity.
-        for i, item in enumerate(cat_results):
-            est_min = item.get("estimated_minutes")
-            try:
-                est_min_val = int(est_min) if est_min is not None else None
-                if est_min_val is not None and not (0 <= est_min_val <= 1440):
-                    est_min_val = None
-            except (ValueError, TypeError):
-                est_min_val = None
-            classification = EntryClassification(
-                entry_id=entry.id,
-                category=item["category"],
-                extracted_text=item.get("text"),
-                estimated_minutes=est_min_val,
-                display_order=i,
-                model_version=item.get("model") or settings.CLASSIFICATION_MODEL,
-            )
-            db.add(classification)
-
-        await db.flush()
+        logger.info(f"Stored transcript: {entry.transcript[:120]}...")
 
         await queue_svc.complete_job(db, job)
         await db.commit()
 
         logger.info(
-            f"Job {job.id} done: entry={entry.id} "
-            f"classifications={len(cat_results)}"
+            f"Job {job.id} done in {time.perf_counter() - job_started:.2f}s: entry={entry.id} "
+            "transcript_saved=true"
         )
 
         # ── Step 4: Write notification (Supabase Realtime delivers to frontend)
         db.add(Notification(
             user_id=entry.user_id,
-            event_type="entry.classified",
+            event_type="entry.transcribed",
             payload_json=json.dumps({
                 "entry_id": str(entry.id),
                 "transcript": entry.transcript,
-                "categories": [
-                    {"text": r["text"], "category": r["category"]}
-                    for r in cat_results
-                ],
+                "categories": [],
             }),
         ))
         await db.commit()

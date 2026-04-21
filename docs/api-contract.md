@@ -1,6 +1,6 @@
 # Miniapp API Contract
 
-The Mini Program is a lightweight input and sharing client. It only talks to first-party `/miniapp/*` endpoints. The backend owns transcription, summarization, storage, deletion, and regeneration.
+The Mini Program is a lightweight input and sharing client. It only talks to first-party `/miniapp/*` endpoints. The backend owns transcription, on-demand tidying, storage, deletion, and regeneration.
 
 ## Minimal User Flow
 
@@ -12,6 +12,7 @@ wx.cloud.getTempFileURL
 POST /miniapp/entries
 GET /miniapp/jobs/{job_id}
 GET /miniapp/daily/{date}
+POST /miniapp/daily/{date}/reclassify
 GET /miniapp/entries/{entry_id}/result
 POST /miniapp/share/cards
 ```
@@ -54,7 +55,7 @@ wx.cloud.uploadFile({ cloudPath, filePath })
 wx.cloud.getTempFileURL({ fileList: [fileID] })
 ```
 
-The backend receives the CloudBase `fileID` and a short-lived temp URL, then owns transcription, summarization, and database state. The older `/miniapp/uploads/create` and `/miniapp/uploads/audio` backend upload path remains as a fallback for non-CloudBase clients.
+The backend receives the CloudBase `fileID` and a short-lived temp URL, then owns transcription and database state. The older `/miniapp/uploads/create` and `/miniapp/uploads/audio` backend upload path remains as a fallback for non-CloudBase clients.
 
 ## Entries
 
@@ -87,7 +88,7 @@ Response:
 Server behavior:
 
 - Create entry.
-- Enqueue transcription and AI summary job.
+- Enqueue a fast transcription job.
 - Return immediately.
 
 ### `GET /miniapp/daily/{date}`
