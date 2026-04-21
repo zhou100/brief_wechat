@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.3.3] - 2026-04-20
+
+### Fixed
+
+- Opening 今日清爽 at the start of a new day no longer shows a false "今天内容暂时打不开" toast before anything has been recorded.
+
 ## [0.1.3.2] - 2026-04-20
 
 ### Fixed

@@ -96,7 +96,10 @@ Page({
       this.loadWeeklySuggestion(token);
     } catch (error) {
       if (requestId !== this.loadRequestId) return;
-      wx.showToast({ title: "今天内容暂时打不开", icon: "none" });
+      console.warn("[brief-day] load failed", error);
+      if (shouldShowLoadFailureToast(error, entryId, date, this.data.entryCount, this.data.contentCount)) {
+        wx.showToast({ title: `${this.data.dateLabel}内容暂时打不开`, icon: "none" });
+      }
     }
   },
 
@@ -454,6 +457,15 @@ function dateViewState(date: string, today = todayLocalDate()) {
     dateLabel: formatDayLabel(date, today),
     isToday: date === today,
   };
+}
+
+function shouldShowLoadFailureToast(error: unknown, entryId: string, date: string, entryCount: number, contentCount: number): boolean {
+  if (entryId || entryCount > 0 || contentCount > 0) return true;
+  return date !== todayLocalDate() || !isNotFoundError(error);
+}
+
+function isNotFoundError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes("Request failed: 404");
 }
 
 type ViewCategoryGroup = CategoryGroup & {
