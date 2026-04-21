@@ -27,7 +27,7 @@ from ..services import queue as queue_svc
 from ..services import storage as storage_svc
 from ..services.categorization import categorize_text
 from ..services.transcript_refiner import refine_transcript
-from ..services.xfyun_transcription import transcribe_audio
+from ..services.transcription import transcribe_audio
 from ..settings import settings
 
 logger = logging.getLogger(__name__)
@@ -87,7 +87,11 @@ async def _process_job(db: AsyncSession, job: Job) -> None:
 
         suffix = os.path.splitext(entry.raw_audio_key)[1] or ".mp3"
         try:
-            raw_transcript = await transcribe_audio(audio_bytes, suffix)
+            raw_transcript = await transcribe_audio(
+                audio_bytes,
+                suffix,
+                source_url=entry.raw_audio_download_url,
+            )
             logger.info(f"Raw transcript ({len(raw_transcript)} chars): {raw_transcript[:120]}...")
         except Exception as exc:
             raise RuntimeError(f"xfyun_transcription_failed: {exc}") from exc
