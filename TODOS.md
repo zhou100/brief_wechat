@@ -4,6 +4,24 @@ Use this file for deferred work that should survive across sessions. Group items
 
 ## Miniapp
 
+### Realtime Dictation Preview
+
+**Priority:** P3
+
+**What:** Explore live dictation during recording, so text appears while the user is still speaking.
+
+**Why:** iFlytek's WebSocket IAT and RTASR APIs support streaming recognition, and WeChat `RecorderManager.onFrameRecorded` can provide audio chunks when `frameSize` is configured. This could make long recordings feel even more alive after the current "record first, tidy later" flow has shipped and stabilized.
+
+**Pros:** Gives immediate confidence that speech is being captured; could reduce anxiety during long notes; makes the product feel more magical for users who talk for 1+ minutes.
+
+**Cons:** Adds a much more complex realtime path: miniapp audio chunk streaming, backend WebSocket relay, partial-result correction, reconnect behavior, WebSocket domain setup, and real-device QA. Streaming ASR can revise earlier text, so UI must handle text replacement without looking broken.
+
+**Effort:** L -> with CC+gstack: ~1-2 hours for a prototype, longer for production polish and real-device hardening.
+
+**Depends on:** Ship the current faster flow first: record -> quick transcript -> optional "一键理清爽". Revisit only after measuring whether users still complain about waiting or uncertainty during long recordings.
+
+---
+
 ### Multi-Week Weekly Browsing
 
 **Priority:** P3
