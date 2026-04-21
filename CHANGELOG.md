@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.5.1] - 2026-04-21
+
+### Added
+
+- The "记下的原话" view now lets users edit or delete each saved transcript before running "一键理清爽".
+
+### Changed
+
+- Editing a transcript now clears that entry's existing classifications, so stale categories do not keep showing after the source text changes.
+- The day page keeps "开始讲" in the recording panel and places the optional "一键理清爽" panel below it.
+- After "一键理清爽" finishes, the miniapp switches back to "按分类看" automatically.
+
+### Fixed
+
+- Empty transcript edits are rejected before saving.
+
 ## [0.1.5.0] - 2026-04-21
 
 ### Added
