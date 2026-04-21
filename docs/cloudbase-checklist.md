@@ -51,10 +51,15 @@ Set these in CloudBase Run service settings.
 | `XFYUN_API_SECRET` | Your iFlytek API secret |
 | `XFYUN_IAT_URL` | `wss://iat.cn-huabei-1.xf-yun.com/v1` |
 | `XFYUN_EOS_MS` | `5000` |
+| `XFYUN_FRAME_INTERVAL_SECONDS` | `0` |
+| `XFYUN_FALLBACK_FRAME_INTERVAL_SECONDS` | `0.04` |
+| `XFYUN_SEGMENT_CONCURRENCY` | `2` |
 | `XFYUN_MAX_SEGMENT_SECONDS` | `55` |
 | `XFYUN_SILENCE_RMS_THRESHOLD` | `200` |
 | `XFYUN_SILENCE_SPLIT_SECONDS` | `1.2` |
 | `XFYUN_KEEP_SILENCE_SECONDS` | `0.25` |
+| `TRANSCRIPT_REFINE_ENABLED` | `false` |
+| `MINIAPP_TIDY_REFINE_ENABLED` | `true` |
 | `ALLOWED_ORIGINS_STR` | `*` |
 
 Example:
@@ -72,7 +77,7 @@ After the backend deploys successfully, update:
 export const API_BASE_URL = "https://<cloudbase-run-domain>";
 export const CLOUDBASE_ENV_ID = "cloud1-d1gvgrhtq5b993f00";
 export const REQUEST_TIMEOUT_MS = 20000;
-export const RECLASSIFY_TIMEOUT_MS = 60000;
+export const TIDY_TIMEOUT_MS = 60000;
 export const JOB_POLL_INTERVAL_MS = 1600;
 export const USE_MOCK_API = false;
 export const USE_CLOUDBASE_UPLOAD = true;
@@ -109,7 +114,7 @@ GET /miniapp/entries/{entry_id}/result
 Mini Program:
 
 ```text
-home -> day -> pick date -> record -> stop -> wx.cloud.uploadFile -> job -> daily result -> share
+home -> day -> pick date -> record -> stop -> wx.cloud.uploadFile -> job -> raw transcript -> one-tap tidy -> daily result -> share
 ```
 
 ## Important Notes

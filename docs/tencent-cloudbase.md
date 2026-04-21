@@ -8,7 +8,7 @@ WeChat Mini Program
   -> CloudBase Run / CloudBase Hosting domain
   -> FastAPI Docker backend
   -> CloudBase built-in MySQL
-  -> iFlytek ASR + TokenHub LLM summarization pipeline
+  -> iFlytek ASR + TokenHub LLM tidy pipeline
 ```
 
 ## Why CloudBase Run
@@ -111,7 +111,7 @@ POST /miniapp/auth/login
 export const API_BASE_URL = "https://<cloudbase-run-domain>";
 export const CLOUDBASE_ENV_ID = "cloud1-d1gvgrhtq5b993f00";
 export const REQUEST_TIMEOUT_MS = 20000;
-export const RECLASSIFY_TIMEOUT_MS = 60000;
+export const TIDY_TIMEOUT_MS = 60000;
 export const JOB_POLL_INTERVAL_MS = 1600;
 export const USE_MOCK_API = false;
 export const USE_CLOUDBASE_UPLOAD = true;
@@ -126,7 +126,7 @@ npm run build
 7. Test on device:
 
 ```text
-login -> record -> wx.cloud.uploadFile -> job -> result -> share
+login -> record -> wx.cloud.uploadFile -> job -> raw transcript -> one-tap tidy -> share
 ```
 
 ## Notes
