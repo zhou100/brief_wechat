@@ -1,4 +1,5 @@
 time_logger_game/
+.claude/
 project.private.config.json
 node_modules/
 miniprogram/miniprogram_npm/
