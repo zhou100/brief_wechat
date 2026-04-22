@@ -13,6 +13,7 @@ All notable changes to this project are documented in this file.
 - Editing a transcript now clears that entry's existing classifications, so stale categories do not keep showing after the source text changes.
 - The day page keeps "开始讲" in the recording panel and places the optional "一键理清爽" panel below it.
 - After "一键理清爽" finishes, the miniapp switches back to "按分类看" automatically.
+- Already-organized days now keep a "重新整理" action available, so users can re-run categorization after wording changes or bad classifications.
 
 ### Fixed
 

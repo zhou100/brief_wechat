@@ -50,13 +50,13 @@
     <text wx:if="{{errorText}}" class="error-text">{{errorText}}</text>
   </view>
 
-  <view wx:if="{{hasUntidiedTranscripts && !processing}}" class="tidy-panel stack">
+  <view wx:if="{{entryCount > 0 && !processing}}" class="tidy-panel stack">
     <view class="result-intro-row">
       <view class="stack tidy-copy">
-        <text class="section-title">先记下来了</text>
-        <text class="muted">先看下面的原话；改好了，再点一下分门别类。</text>
+        <text class="section-title">{{hasUntidiedTranscripts ? '先记下来了' : '想重新分一下？'}}</text>
+        <text class="muted">{{hasUntidiedTranscripts ? '先看下面的原话；改好了，再点一下分门别类。' : '原话改过，或者觉得分类不对时，可以再整理一遍。'}}</text>
       </view>
-      <button class="tidy-btn {{tidying ? 'disabled' : ''}}" loading="{{tidying}}" disabled="{{tidying}}" bindtap="tidy">一键理清爽</button>
+      <button class="tidy-btn {{tidying ? 'disabled' : ''}}" loading="{{tidying}}" disabled="{{tidying}}" bindtap="tidy">{{hasUntidiedTranscripts ? '一键理清爽' : '重新整理'}}</button>
     </view>
   </view>
 
