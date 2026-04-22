@@ -1,90 +1,153 @@
-# Brief WeChat Mini Program
+# 讲过就清爽
 
-Brief WeChat is a lightweight Mini Program client for voice capture, AI summary, and share-card growth.
+一个练习项目。帮助说方言的中老年人用语音记录日常，AI 自动整理成可读的文字摘要。
 
-This repo does not copy the existing React web app. It keeps `time_logger_game/` as a local ignored reference and builds a new WeChat-runtime client around the smallest useful loop:
+开源，随意使用。
 
-```text
-open -> start -> record -> CloudBase upload -> backend job -> raw transcript -> one-tap tidy -> share summary card
-```
+---
 
-## Product Scope
+## 背景
 
-First version:
+很多中老年人不擅长打字，但愿意说话。这个小程序让用户对着手机讲一段话，后端自动转录、分类、整理，结果以简洁的中文呈现。界面设计以吴语区中老年用户为主要对象，文字大、操作少、语言口语化。
 
-- record and upload audio with CloudBase native storage
-- poll backend job status
-- show a date-scoped day page with previous/next navigation and a native date picker
-- show raw transcripts first, then tidy them into a structured daily result on demand:
-  - category groups
-  - key points
-  - open loops
-- delete one entry
-- regenerate one entry
-- share a summary card
-- show read-only share landing page
+产品名"讲过就清爽"——讲出来，记下来，脑子就轻松了。
 
-Deferred:
+## 功能
 
-- realtime transcription
-- waveform visualization
-- complex editing
-- charts and analytics
-- full long report sharing
-- direct AI calls from the client
+- 语音录制，上传到 CloudBase 存储
+- 后端转录（讯飞）、AI 分类整理（DeepSeek）
+- 按天查看整理结果，支持手动再整理
+- 按周生成回顾摘要
+- 历史记录浏览
 
-## Structure
+## 技术栈
 
 ```text
-miniprogram/
-  pages/                 main package: index, record/job/day, me
-  pkg_history/           subpackage: history stubs and read-only share landing
-  pkg_settings/          subpackage: settings, privacy, feedback, binding
-  services/              auth, request, upload, entry APIs, recorder
-  types/                 API types
-docs/
-  architecture.md        product and technical boundary
-  api-contract.md        /miniapp/* BFF contract
-  compliance.md          WeChat privacy and launch checklist
+miniprogram/     微信小程序（TypeScript + WXML）
+backend/         FastAPI 后端（Python，部署于腾讯云托管）
 ```
 
-## Local Setup
+后端依赖：
+- 讯飞 WebSocket 流式转录
+- 腾讯云 TokenHub → DeepSeek v3 / Hunyuan（LLM）
+- CloudBase MySQL + CloudBase 存储
+- JWT 认证
+
+## 本地运行
+
+**小程序端：**
 
 ```bash
 npm install
 npm run build
 cp miniprogram/env.example.ts miniprogram/env.ts
+# 修改 env.ts 填入你的 API 地址
 ```
 
-Update `miniprogram/env.ts`:
+用微信开发者工具打开项目根目录（`project.config.json` 所在位置）。
 
-```ts
-export const API_BASE_URL = "https://your-api.example.com";
+**后端：**
+
+```bash
+cp deployment/tencent-cloudbase-env.example backend/.env
+# 填入各服务的密钥
+cd backend
+pip install -r requirements.txt
+python scripts/init_db.py
+uvicorn app.main:app --reload
 ```
 
-Open this repo root in WeChat DevTools with `project.config.json`.
+所需外部服务：MySQL、讯飞账号、腾讯云 TokenHub 账号。
 
-## Backend Contract
+## 部署
 
-The Mini Program expects a first-party BFF layer:
-
-- `POST /miniapp/auth/login`
-- `POST /miniapp/entries`
-- `GET /miniapp/jobs/{job_id}`
-- `GET /miniapp/daily/{date}`
-- `GET /miniapp/entries/{entry_id}/result`
-- `DELETE /miniapp/entries/{entry_id}`
-- `POST /miniapp/entries/{entry_id}/regenerate`
-- `POST /miniapp/share/cards`
-- `GET /miniapp/share/cards/{share_id}`
-
-The BFF lives in `backend/` and exposes the Mini Program API without making the Mini Program depend on the old Web API surface.
-
-## Tencent Cloud Deployment
-
-The full Tencent Cloud target uses CloudBase Run, CloudBase MySQL, and CloudBase native storage. It is documented in:
+腾讯云托管（CloudBase Run）部署说明见：
 
 - `docs/tencent-cloudbase.md`
 - `docs/cloudbase-checklist.md`
 - `deployment/tencent-cloudbase-env.example`
-- `miniprogram/env.tencent.example.ts`
+
+## 注意
+
+`backend/.env` 包含密钥，不要提交到版本库。项目内有 `.env.example` 模板。
+
+## License
+
+MIT
+
+---
+
+# 讲过就清爽 (Talk It Out, Clear Your Head)
+
+A practice project. A WeChat Mini Program that helps older adults who speak Chinese dialects record their daily lives by voice — the backend transcribes and organises everything into a readable summary.
+
+Open source. Use it however you like.
+
+## Background
+
+Many older adults find typing difficult but are happy to talk. This app lets users speak into their phone; the backend transcribes, categorises, and tidies the result into plain Chinese. The UI is designed for Wu-dialect speakers: large text, minimal steps, conversational language.
+
+The name means roughly "once you've said it, your head feels lighter."
+
+## Features
+
+- Voice recording, uploaded to Tencent CloudBase storage
+- Transcription via iFlytek, AI organisation via DeepSeek
+- Day view with manual re-tidy option
+- Weekly recap summary
+- History browsing
+
+## Stack
+
+```text
+miniprogram/     WeChat Mini Program (TypeScript + WXML)
+backend/         FastAPI backend (Python, deployed on Tencent CloudBase Run)
+```
+
+Backend dependencies:
+- iFlytek WebSocket streaming ASR
+- Tencent TokenHub → DeepSeek v3 / Hunyuan (LLM)
+- CloudBase MySQL + CloudBase storage
+- JWT auth
+
+## Local Setup
+
+**Mini Program:**
+
+```bash
+npm install
+npm run build
+cp miniprogram/env.example.ts miniprogram/env.ts
+# Fill in your API base URL in env.ts
+```
+
+Open the project root in WeChat DevTools (where `project.config.json` lives).
+
+**Backend:**
+
+```bash
+cp deployment/tencent-cloudbase-env.example backend/.env
+# Fill in your service credentials
+cd backend
+pip install -r requirements.txt
+python scripts/init_db.py
+uvicorn app.main:app --reload
+```
+
+External services required: MySQL, iFlytek account, Tencent TokenHub account.
+
+## Deployment
+
+CloudBase Run deployment is documented in:
+
+- `docs/tencent-cloudbase.md`
+- `docs/cloudbase-checklist.md`
+- `deployment/tencent-cloudbase-env.example`
+
+## Note
+
+`backend/.env` contains secrets — do not commit it. A template is provided at `deployment/tencent-cloudbase-env.example`.
+
+## License
+
+MIT
