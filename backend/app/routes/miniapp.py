@@ -117,6 +117,10 @@ class ClassificationPatchRequest(BaseModel):
     status: Optional[str] = None
 
 
+class EntryPatchRequest(BaseModel):
+    transcript: Optional[str] = None
+
+
 class ShareCard(BaseModel):
     share_id: str
     title: str
@@ -369,6 +373,30 @@ async def delete_entry(
         await storage_svc.delete_object(entry.raw_audio_key)
     await db.delete(entry)
     await db.commit()
+
+
+@router.post("/entries/{entry_id}")
+async def update_entry(
+    entry_id: str,
+    body: EntryPatchRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if body.transcript is None:
+        raise HTTPException(status_code=400, detail="transcript is required")
+    transcript = body.transcript.strip()
+    if not transcript:
+        raise HTTPException(status_code=400, detail="transcript cannot be empty")
+
+    entry = await _get_owned_entry(db, entry_id, current_user.id)
+    entry.transcript = transcript
+    for classification in list(entry.classifications):
+        await db.delete(classification)
+    await db.flush()
+    if entry.local_date:
+        await _mark_weekly_audits_stale(db, current_user.id, entry.local_date)
+    await db.commit()
+    return {"ok": True}
 
 
 @router.post("/entries/{entry_id}/regenerate", response_model=EntryCreateResponse)

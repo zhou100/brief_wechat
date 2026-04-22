@@ -40,16 +40,6 @@
     <text class="helper-text">普通话、吴语、带口音都可以。</text>
   </view>
 
-  <view wx:if="{{hasUntidiedTranscripts && !processing}}" class="tidy-panel stack">
-    <view class="result-intro-row">
-      <view class="stack tidy-copy">
-        <text class="section-title">先记下来了</text>
-        <text class="muted">原话已经放在下面；想分门别类时，再点一下。</text>
-      </view>
-      <button class="tidy-btn {{tidying ? 'disabled' : ''}}" loading="{{tidying}}" disabled="{{tidying}}" bindtap="tidy">一键理清爽</button>
-    </view>
-  </view>
-
   <view class="talk-panel stack {{recording ? 'talking' : ''}}">
     <text class="section-title">{{recording ? '正在听你讲' : '想到什么就讲两句'}}</text>
     <text class="talk-time">{{elapsedLabel}}</text>
@@ -60,9 +50,19 @@
     <text wx:if="{{errorText}}" class="error-text">{{errorText}}</text>
   </view>
 
+  <view wx:if="{{hasUntidiedTranscripts && !processing}}" class="tidy-panel stack">
+    <view class="result-intro-row">
+      <view class="stack tidy-copy">
+        <text class="section-title">先记下来了</text>
+        <text class="muted">先看下面的原话；改好了，再点一下分门别类。</text>
+      </view>
+      <button class="tidy-btn {{tidying ? 'disabled' : ''}}" loading="{{tidying}}" disabled="{{tidying}}" bindtap="tidy">一键理清爽</button>
+    </view>
+  </view>
+
   <view wx:if="{{categoryGroups.length > 0 && entries.length > 0}}" class="view-tabs">
     <button class="view-tab {{viewMode === 'category' ? 'active' : ''}}" bindtap="showCategoryView">按分类看</button>
-    <button class="view-tab {{viewMode === 'timeline' ? 'active' : ''}}" bindtap="showTimelineView">按讲话顺序看</button>
+    <button class="view-tab {{viewMode === 'timeline' ? 'active' : ''}}" bindtap="showTimelineView">记下的原话</button>
   </view>
 
   <view wx:if="{{viewMode === 'category' && categoryGroups.length > 0}}" class="stack">
@@ -110,13 +110,33 @@
   </view>
 
   <view wx:elif="{{viewMode === 'timeline' && entries.length > 0}}" class="panel stack">
-    <text class="section-title">{{hasUntidiedTranscripts ? '已记下的原话' : '按讲话顺序看'}}</text>
+    <text class="section-title">记下的原话</text>
     <text class="muted">{{hasUntidiedTranscripts ? '先核对原话；点上面的“一键理清爽”后，我再帮你分门别类。' : '这里尽量保留原来的转写，方便你校对和回想。'}}</text>
     <block wx:for="{{entries}}" wx:key="id" wx:for-item="entry" wx:for-index="entryIndex">
       <view class="category-line timeline-entry">
         <text class="list-index">{{entryIndex + 1}}</text>
         <view class="line-main">
-          <text class="list-line">{{entry.transcript || '这段没有转写出来'}}</text>
+          <block wx:if="{{editingEntryId == entry.id}}">
+            <textarea
+              class="edit-box"
+              value="{{entryEditDraft}}"
+              auto-focus="true"
+              auto-height="true"
+              maxlength="1000"
+              bindinput="updateEntryEditDraft"
+            />
+            <view class="line-actions">
+              <button class="small-primary" data-entry-id="{{entry.id}}" bindtap="saveEntryEdit">存好</button>
+              <button class="small-secondary" bindtap="cancelEntryEdit">算了</button>
+            </view>
+          </block>
+          <block wx:else>
+            <text class="list-line">{{entry.transcript || '这段没有转写出来'}}</text>
+            <view wx:if="{{entry.id}}" class="line-actions">
+              <button class="small-secondary" data-entry-id="{{entry.id}}" data-transcript="{{entry.transcript}}" bindtap="startEntryEdit">改一下</button>
+              <button class="small-danger" data-entry-id="{{entry.id}}" bindtap="deleteEntryTranscript">删除</button>
+            </view>
+          </block>
         </view>
       </view>
     </block>

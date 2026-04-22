@@ -50,6 +50,27 @@ Every `/ship` must maintain the release tracking files:
 
 If any of those files are missing, create them during `/ship` instead of skipping the release tracking step.
 
+## Review Handoff
+
+When `/plan-ceo-review`, `/plan-design-review`, or `/plan-eng-review` is run for a feature, the review outcome must be saved to a local Markdown file before implementation starts.
+
+Use this directory and naming pattern:
+
+```text
+docs/reviews/YYYY-MM-DD-feature-name-{ceo|design|eng}.md
+```
+
+Each review file must include:
+
+- The feature or decision being reviewed.
+- The final recommendation.
+- Decisions accepted.
+- Decisions explicitly deferred or out of scope.
+- Risks and edge cases to watch during implementation.
+- Concrete implementation constraints the coder must follow.
+
+Before implementing a reviewed feature, read all matching files in `docs/reviews/` and use them as the execution checklist. Do not rely on chat history alone. If the review files and current user instructions conflict, ask for clarification before coding.
+
 ## Design System
 
 Always read `DESIGN.md` before making visual or UI decisions.

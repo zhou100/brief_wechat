@@ -110,6 +110,66 @@ async def test_delete_miniapp_item_dismisses_only_that_item(app):
 
 
 @pytest.mark.asyncio
+async def test_update_miniapp_entry_transcript(app):
+    item = _classification()
+    entry = _entry(item)
+
+    entry_result = MagicMock()
+    entry_result.scalar_one_or_none.return_value = entry
+    stale_result = MagicMock()
+    stale_result.scalars.return_value.all.return_value = []
+
+    db = AsyncMock()
+    db.execute = AsyncMock(side_effect=[entry_result, stale_result])
+    db.delete = AsyncMock()
+    db.flush = AsyncMock()
+    db.commit = AsyncMock()
+
+    _override_auth(app)
+    _override_db(app, db)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post(f"/miniapp/entries/{entry.id}", json={"transcript": "今天出门买两把青菜。"})
+
+    assert resp.status_code == 200
+    assert resp.json() == {"ok": True}
+    assert entry.transcript == "今天出门买两把青菜。"
+    db.delete.assert_awaited_once_with(item)
+    db.flush.assert_awaited_once()
+    db.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_update_miniapp_entry_requires_transcript(app):
+    item = _classification()
+    entry = _entry(item)
+    db = _db_for_item(entry)
+    _override_auth(app)
+    _override_db(app, db)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post(f"/miniapp/entries/{entry.id}", json={})
+
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_update_miniapp_entry_rejects_empty_transcript(app):
+    item = _classification()
+    entry = _entry(item)
+    db = _db_for_item(entry)
+    _override_auth(app)
+    _override_db(app, db)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post(f"/miniapp/entries/{entry.id}", json={"transcript": "   "})
+
+    assert resp.status_code == 400
+    assert resp.json() == {"detail": "transcript cannot be empty"}
+    db.execute.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_update_miniapp_item_cross_user_returns_404(app):
     db = _db_for_item(None)
     _override_auth(app, user_id=2)
